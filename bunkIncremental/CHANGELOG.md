@@ -14,7 +14,123 @@ Tahap rilis yang dipakai:
 
 ---
 
-## [0.3.1-demo] — 2026-10-26
+## [0.4.0-demo] — 2026-10-26
+
+**Judul: "Hold the Line"**
+
+Fase 4: progresi pemain akhirnya punya bentuk. Ada pohon skill bercabang,
+pagar sebagai garis depan yang benar-benar menahan zombie, dan bunker yang bisa
+dimasuki — lengkap dengan lantai dua untuk auto-weapon pertama nanti.
+
+### Ditambahkan
+
+**Pohon skill (15 node, 5 cabang × 3 tier)**
+
+Panel terpisah, bukan tab terminal. Tema militer: heksagon olive, garis
+prasyarat putus-putus, bracket sudut. Buka dengan `K`, tutup dengan `K`/`Esc`.
+Selama panel terbuka, waktu game berhenti.
+
+| Cabang | Tier 1 | Tier 2 | Tier 3 |
+|---|---|---|---|
+| COMBAT | Steady Aim | Quick Hands | Hollow Point |
+| FORTIFY | Reinforced Door | Barbed Wire | Auto Patch |
+| ENGINEERING | Tower Access | Fuel Injector | Backup Generator |
+| INDUSTRY | Second Line | Salvage Press | Overclock |
+| ECONOMY | Haggler | Bulk Contract | Night Market |
+
+Prasyarat tidak selalu satu cabang: `Tower Access` butuh `Reinforced Door`
+(lintas cabang FORTIFY → ENGINEERING). Garis prasyarat digambar sebagai
+polyline sehingga cabang yang tidak sejajar tetap terbaca.
+
+**Pagar sebagai garis depan**
+
+`Pagar` adalah `StaticBody2D` di physics layer baru "Fence". Zombie
+menabraknya secara fisik, jadi pagar menahan mereka — bukan sekadar angka HP
+yang dikurangi dari jauh. Punya bar HP sendiri di HUD, retakan saat rusak,
+kawat berduri saat `Barbed Wire` dibeli, dan goyang saat kena pukul.
+
+**Interior bunker dua lantai**
+
+Tekan `E` dekat pintu untuk masuk. Lantai 1 punya kasur (regenerasi 3 HP/s)
+dan pintu keluar. Lantai 2 terkunci sampai `Tower Access` dibeli. Naik/turun
+lewat tangga dengan `W`/`S`.
+
+Waktu **tetap berjalan** selama di dalam. Zombie terus menggerus pagar dan
+pintu, jadi masuk bunker bukan jeda gratis — justru kehilangan tembakan.
+
+Interior bukan scene terpisah, melainkan `Node2D` di dalam `main.tscn`.
+`World`/`Entities` disembunyikan, bukan di-`change_scene`. Dengan begitu state
+wave, zombie, dan drop tidak hancur, dan tidak perlu kamera kedua.
+
+**Mount point turret (belum menembak)**
+
+Dua slot kosong: satu di depan bunker, satu di lantai 2. Keduanya hanya
+menampilkan alas dan heksagon "MOUNT — EMPTY". Logika menembak masuk fase 5.
+
+### Diperbaiki
+
+- **Minyak bisa menjadi −1.** Ditemukan lewat simulasi 20 menit: kolom minyak
+  sempat menampilkan `-1`. Penyebabnya akuntansi `_sisa_bara`.
+
+  `_sisa_bara` adalah bahan bakar yang **sudah terbakar tapi belum dipotong**
+  dari stok. Jadi ketersediaan yang benar adalah `minyak - _sisa_bara`, bukan
+  `minyak + _sisa_bara`. Dengan penjumlahan, saat `minyak = 1` dan pecahan
+  `0.8`, satu tick masih boleh membakar `0.8` lagi lalu memotong 1 unit →
+  `minyak = -1`.
+
+  Sekarang ada `tersedia = maxf(0.0, minyak - _sisa_bara)` plus jaring pengaman
+  yang memaksa `minyak >= 0`. Konservasi 1 oil = 10 power tetap utuh
+  (efisiensi simulasi 9.78 power/oil).
+
+- **Pemain tidak bergerak saat di dalam bunker.** `_gerak()` memotong posisi
+  tapi tidak pernah menambahkan `velocity * delta`, karena `move_and_slide()`
+  dilewati. Sekarang gerak interior dihitung langsung.
+
+### Diubah
+
+- **Posisi pagar: `x = 165` → `x = 470`.** Di 165 pagar berada **di belakang**
+  titik spawn pemain (`x = 200`), sehingga zombie selalu menjangkau pemain
+  lebih dulu dan pagar tidak pernah menyerap apa pun. Di 470 pagar jadi garis
+  depan yang sebenarnya. **Ini menyimpang dari rencana awal — perlu konfirmasi.**
+
+- **Target zombie jadi berlapis:** pemain (hanya kalau terjangkau dan dalam
+  90 px) → pagar (kalau hidup) → bunker. Pemain yang sedang di dalam bunker
+  dianggap tidak terjangkau.
+
+- **Batas angka pindah ke fungsi turunan.** Semua `*_DASAR` tetap jadi sumber
+  tunggal; skill hanya menambah modifier lewat `hp_bunker_maks()`,
+  `pagar_hp_maks()`, `pengali_damage()`, `pengali_reload()`,
+  `pengali_kecepatan_produksi()`, `pengali_hasil_produksi()`,
+  `pengali_harga_jual()`, `harga_jual_efektif()`, `nilai_jual()`. Tidak ada
+  angka base `GameState` yang ditulis ulang oleh skill.
+
+- **Save format v3** menambah `skill_dimiliki` dan `hp_pagar`. Field opsional
+  baru setelah ini tidak akan menaikkan versi lagi — pembaca memakai default
+  aman.
+
+- **Kontrol:** `E` sekarang untuk masuk/keluar bunker. Terminal tetap global
+  di `Tab`.
+
+### Catatan balancing
+
+Biaya skill masih **placeholder** (120–900) dan belum di-balance. Sesuai
+kesepakatan, penyeimbangan angka ditunda. Simulasi 20 menit saat ini: wave 20,
+267 kill, 10/15 skill, bunker 125/125, pemain 100/100.
+
+Observasi: dengan pagar di 470, bunker nyaris tidak pernah kena damage sampai
+wave ~20 karena pagar menyerap semuanya dan biaya perbaikan masih terjangkau.
+Tekanan baru muncul saat biaya perbaikan (`30 + wave × 4`) tumbuh lebih cepat
+daripada pendapatan. Kalau terasa terlalu aman, tuas paling murah adalah
+menaikkan koefisien biaya perbaikan pagar, bukan menurunkan HP pagar.
+
+### Pengujian
+
+174 test otomatis, semua lolos (`tools/uji.tscn`). Termasuk test baru untuk:
+masuk/keluar bunker, lantai 2 terkunci tanpa `Tower Access`, regenerasi kasur
+(hanya lantai 1), zombie mengabaikan pemain di dalam, dan regresi minyak
+negatif.
+
+---
 
 **Judul: "Fuel Efficiency"**
 

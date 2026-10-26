@@ -29,6 +29,12 @@ var target_titik: Variant = null
 
 var isi_magasin: int = 0
 
+## True saat pemain berada di dalam bunker. Menembak dan menebas mati,
+## gerak jadi 2D (A/D + W/S), dan target bidik diabaikan.
+var di_dalam: bool = false
+## Lantai tempat pemain berada saat di dalam: 1 atau 2.
+var lantai: int = 1
+
 var _y_tanah: float = 260.0
 var _timer_tembak: float = 0.0
 var _timer_tebas: float = 0.0
@@ -67,15 +73,20 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_perbarui_arah()
-	_gerak()
+	_gerak(delta)
 	_perbarui_reload(delta)
+
+	if Input.is_action_just_pressed("pakai_obat"):
+		GameState.pakai_obat()
+
+	# Di dalam bunker tidak ada yang bisa ditembak: semua aksi ofensif mati.
+	if di_dalam:
+		return
 
 	if Input.is_action_pressed("tembak"):
 		_coba_tembak()
 	if Input.is_action_just_pressed("tebas"):
 		_coba_tebas()
-	if Input.is_action_just_pressed("pakai_obat"):
-		GameState.pakai_obat()
 
 
 func apakah_mati() -> bool:
@@ -86,16 +97,62 @@ func apakah_mati() -> bool:
 # Gerak & bidik
 # ---------------------------------------------------------------------------
 
-func _gerak() -> void:
+func _gerak(delta: float) -> void:
 	var arah := Input.get_axis("gerak_kiri", "gerak_kanan")
 	velocity.x = arah * kecepatan
 	velocity.y = 0.0
+
+	if di_dalam:
+		# Di dalam bunker tidak ada collision yang perlu diselesaikan: gerak
+		# langsung dipotong batas interior dan lantai yang sedang dipijak.
+		global_position.x = clampf(global_position.x + velocity.x * delta, batas_kiri, batas_kanan)
+		global_position.y = _y_tanah
+		return
+
 	move_and_slide()
 	global_position.x = clampf(global_position.x, batas_kiri, batas_kanan)
 	global_position.y = _y_tanah
 
 
+## Pindahkan pemain ke dalam bunker. Dipanggil main.gd.
+func masuk_bunker(posisi: Vector2, batas_min: float, batas_maks: float, lantai_baru: int) -> void:
+	di_dalam = true
+	lantai = lantai_baru
+	batas_kiri = batas_min
+	batas_kanan = batas_maks
+	global_position = posisi
+	_y_tanah = posisi.y
+	velocity = Vector2.ZERO
+
+
+## Kembalikan pemain ke dunia luar.
+func keluar_bunker(posisi: Vector2, batas_min: float, batas_maks: float) -> void:
+	di_dalam = false
+	lantai = 1
+	batas_kiri = batas_min
+	batas_kanan = batas_maks
+	global_position = posisi
+	_y_tanah = posisi.y
+	velocity = Vector2.ZERO
+
+
+## Ganti lantai tanpa keluar bunker.
+func pindah_lantai(lantai_baru: int, posisi: Vector2) -> void:
+	lantai = lantai_baru
+	global_position = posisi
+	_y_tanah = posisi.y
+	velocity = Vector2.ZERO
+
+
 func _perbarui_arah() -> void:
+	if di_dalam:
+		var geser := Input.get_axis("gerak_kiri", "gerak_kanan")
+		if absf(geser) > 0.1:
+			_arah_hadap = 1 if geser > 0.0 else -1
+			sprite.flip_h = _arah_hadap < 0
+			muzzle.position.x = absf(muzzle.position.x) * _arah_hadap
+		return
+
 	var tujuan := _titik_bidik()
 	_arah_hadap = 1 if tujuan.x >= global_position.x else -1
 	sprite.flip_h = _arah_hadap < 0
@@ -142,7 +199,7 @@ func _tembak() -> void:
 	var peluru_baru := PELURU_SCENE.instantiate()
 	peluru_baru.global_position = asal
 	peluru_baru.arah = arah
-	peluru_baru.damage = senjata_tembak.damage
+	peluru_baru.damage = senjata_tembak.damage * GameState.pengali_damage()
 	wadah.add_child(peluru_baru)
 
 	_munculkan_kilatan(asal)
@@ -161,7 +218,7 @@ func _mulai_reload() -> void:
 			GameState.pesan.emit("Out of 9mm — craft rounds at the Factory (Tab)", Color(1.0, 0.55, 0.35))
 		return
 	_sedang_reload = true
-	_sisa_reload = senjata_tembak.waktu_reload
+	_sisa_reload = senjata_tembak.waktu_reload * GameState.pengali_reload()
 
 
 func _perbarui_reload(delta: float) -> void:
@@ -216,7 +273,7 @@ func _coba_tebas() -> void:
 		korban.append(zombie)
 
 	for zombie in korban:
-		zombie.terima_damage(senjata_tebas.damage)
+		zombie.terima_damage(senjata_tebas.damage * GameState.pengali_damage())
 
 	_munculkan_tebasan()
 
@@ -277,7 +334,11 @@ func _jatuh() -> void:
 func _bangkit_kembali() -> void:
 	_mati = false
 	modulate = Color.WHITE
-	global_position = Vector2(150.0, _y_tanah)
+	if di_dalam:
+		global_position = Vector2(160.0, _y_tanah)
+		lantai = 1
+	else:
+		global_position = Vector2(150.0, _y_tanah)
 	GameState.pulihkan_pemain(GameState.HP_PEMAIN_MAKS * 0.5)
 	GameState.pesan.emit("Back on your feet", Color(0.6, 0.9, 0.6))
 	bangkit.emit()

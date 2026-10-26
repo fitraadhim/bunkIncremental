@@ -7,7 +7,8 @@ extends Node
 ## Riwayat versi:
 ##   1 — format awal (v0.1.0 - v0.3.0)
 ##   2 — menambah "sisa_bara" (bahan bakar pecahan di generator)
-const VERSI_SAVE := 2
+##   3 — menambah "skill_dimiliki" (skill tree, v0.4.0)
+const VERSI_SAVE := 3
 const JALUR_SIMPAN := "user://simpanan.json"
 const INTERVAL_AUTOSAVE := 10.0
 
@@ -77,9 +78,10 @@ func muat() -> bool:
 		_sudah_dimuat = true
 		return false
 
-	# Migrasi: v1 -> v2 hanya menambah "sisa_bara", dan GameState.dari_dict()
-	# sudah memberi nilai default 0.0 kalau field-nya tidak ada. Jadi tidak
-	# ada langkah khusus, tapi kita catat di log supaya jelas.
+	# Migrasi: v1 -> v2 menambah "sisa_bara", v2 -> v3 menambah
+	# "skill_dimiliki". Keduanya punya nilai default yang aman di
+	# GameState.dari_dict(), jadi tidak ada langkah transformasi khusus —
+	# kita hanya mencatatnya di log supaya jelas saat menelusuri bug.
 	if versi < VERSI_SAVE:
 		print("SaveManager: memigrasi save v%d -> v%d" % [versi, VERSI_SAVE])
 

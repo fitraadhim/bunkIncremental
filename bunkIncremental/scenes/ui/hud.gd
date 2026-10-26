@@ -10,6 +10,7 @@ const WARNA_OBAT := Color(0.86, 0.32, 0.36)
 const WARNA_UANG := Color(0.95, 0.76, 0.32)
 const WARNA_HP := Color(0.80, 0.26, 0.22)
 const WARNA_BUNKER := Color(0.36, 0.62, 0.86)
+const WARNA_PAGAR := Color(0.72, 0.62, 0.42)
 const WARNA_BAIK := Color(0.55, 0.88, 0.55)
 const WARNA_BURUK := Color(1.0, 0.45, 0.32)
 
@@ -21,6 +22,7 @@ var _pemain: Node = null
 
 var _label_pesan: Label
 var _wadah_pesan: PanelContainer
+var _petunjuk: Label
 var _sisa_pesan: float = 0.0
 
 
@@ -31,15 +33,24 @@ func _ready() -> void:
 	GameState.resource_berubah.connect(_perbarui_resource)
 	GameState.hp_pemain_berubah.connect(_on_hp_pemain)
 	GameState.hp_bunker_berubah.connect(_on_hp_bunker)
+	GameState.hp_pagar_berubah.connect(_on_hp_pagar)
 	GameState.listrik_berubah.connect(_on_listrik)
 	GameState.wave_berubah.connect(_on_wave)
 	GameState.peluru_berubah.connect(_on_peluru)
+	SkillTree.skill_berubah.connect(_on_skill_berubah)
 
 	_perbarui_resource()
 	_on_hp_pemain(GameState.hp_pemain, GameState.HP_PEMAIN_MAKS)
-	_on_hp_bunker(GameState.hp_bunker, GameState.HP_BUNKER_MAKS)
-	_on_listrik(GameState.listrik, GameState.LISTRIK_MAKS)
+	_on_hp_bunker(GameState.hp_bunker, GameState.hp_bunker_maks())
+	_on_hp_pagar(GameState.hp_pagar, GameState.pagar_hp_maks())
+	_on_listrik(GameState.listrik, GameState.listrik_maks())
 	_on_wave(GameState.wave, GameState.zombie_hidup)
+
+
+func _on_skill_berubah() -> void:
+	_on_hp_bunker(GameState.hp_bunker, GameState.hp_bunker_maks())
+	_on_hp_pagar(GameState.hp_pagar, GameState.pagar_hp_maks())
+	_on_listrik(GameState.listrik, GameState.listrik_maks())
 
 
 func _process(delta: float) -> void:
@@ -51,7 +62,7 @@ func _process(delta: float) -> void:
 		elif GameState.tren_harga == "down":
 			panah = " v"
 		_label["pasar"].text = "OIL $%s%s  (%s)" % [
-			Formatter.harga(GameState.harga_minyak),
+			Formatter.harga(GameState.harga_jual_efektif()),
 			panah,
 			Formatter.waktu(GameState.sisa_refresh_harga),
 		]
@@ -128,7 +139,7 @@ func _bangun_panel_wave() -> void:
 
 func _bangun_panel_kondisi() -> void:
 	var panel := _buat_panel(Vector2(168, 0))
-	panel.position = Vector2(6, 306)
+	panel.position = Vector2(6, 282)
 	add_child(panel)
 
 	var vbox := VBoxContainer.new()
@@ -137,12 +148,13 @@ func _bangun_panel_kondisi() -> void:
 
 	_baris_bar(vbox, "YOU", WARNA_HP, "hp_pemain")
 	_baris_bar(vbox, "BUNKER", WARNA_BUNKER, "hp_bunker")
+	_baris_bar(vbox, "FENCE", WARNA_PAGAR, "hp_pagar")
 	_baris_bar(vbox, "POWER", WARNA_UANG, "listrik")
 
 
 func _bangun_panel_amunisi() -> void:
 	var panel := _buat_panel(Vector2(150, 0))
-	panel.position = Vector2(LEBAR_LAYAR - 156.0, 306)
+	panel.position = Vector2(LEBAR_LAYAR - 156.0, 282)
 	add_child(panel)
 
 	var vbox := VBoxContainer.new()
@@ -182,15 +194,22 @@ func _bangun_pesan() -> void:
 
 
 func _bangun_petunjuk() -> void:
-	var petunjuk := _buat_label(
-		"A/D move   ·   LMB shoot   ·   SPACE machete   ·   Q medkit   ·   TAB terminal",
+	_petunjuk = _buat_label(
+		"A/D move  ·  LMB shoot  ·  SPACE machete  ·  Q medkit  ·  TAB terminal  ·  K skills  ·  E bunker",
 		8,
 		Color(0.45, 0.48, 0.54)
 	)
-	petunjuk.position = Vector2(0, 344)
-	petunjuk.size = Vector2(LEBAR_LAYAR, 12)
-	petunjuk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	add_child(petunjuk)
+	_petunjuk.position = Vector2(0, 347)
+	_petunjuk.size = Vector2(LEBAR_LAYAR, 12)
+	_petunjuk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(_petunjuk)
+
+
+## Interior menggambar petunjuknya sendiri, jadi baris ini disembunyikan
+## selama pemain di dalam bunker.
+func atur_petunjuk_terlihat(terlihat: bool) -> void:
+	if _petunjuk != null:
+		_petunjuk.visible = terlihat
 
 
 # ---------------------------------------------------------------------------
@@ -301,6 +320,13 @@ func _on_hp_bunker(sekarang: float, maks: float) -> void:
 		return
 	_bar["hp_bunker"].max_value = maks
 	_bar["hp_bunker"].value = sekarang
+
+
+func _on_hp_pagar(sekarang: float, maks: float) -> void:
+	if not _bar.has("hp_pagar"):
+		return
+	_bar["hp_pagar"].max_value = maks
+	_bar["hp_pagar"].value = sekarang
 
 
 func _on_listrik(sekarang: float, maks: float) -> void:

@@ -55,12 +55,36 @@ func _physics_process(delta: float) -> void:
 
 
 func _cari_target():
+	var pagar = _pagar_hidup()
+
 	var pemain = get_tree().get_first_node_in_group("pemain")
 	if pemain != null and is_instance_valid(pemain):
-		if not pemain.apakah_mati():
-			if absf(pemain.global_position.x - global_position.x) < 90.0:
+		# Pemain di dalam bunker tidak bisa dijangkau sama sekali.
+		if not pemain.apakah_mati() and not pemain.di_dalam:
+			# Pemain di belakang pagar tidak bisa dijangkau: zombie harus
+			# menghancurkan pagar dulu. Tanpa cek ini, zombie akan berdiri
+			# menempel pagar sambil mengabaikannya.
+			var terjangkau := true
+			if pagar != null:
+				terjangkau = pemain.global_position.x > pagar.global_position.x
+			if terjangkau and absf(pemain.global_position.x - global_position.x) < 90.0:
 				return pemain
+
+	if pagar != null:
+		return pagar
 	return get_tree().get_first_node_in_group("bunker")
+
+
+## Pagar terdekat yang masih berdiri, atau null.
+func _pagar_hidup():
+	if not GameState.pagar_hidup():
+		return null
+	var pagar = get_tree().get_first_node_in_group("pagar")
+	if pagar == null or not is_instance_valid(pagar):
+		return null
+	if not pagar.visible:
+		return null
+	return pagar
 
 
 func _serang(target) -> void:
@@ -69,6 +93,8 @@ func _serang(target) -> void:
 	_timer_serang = data.jeda_serang
 
 	if target.is_in_group("pemain"):
+		target.terima_damage(data.damage)
+	elif target.is_in_group("pagar"):
 		target.terima_damage(data.damage)
 	else:
 		GameState.terima_damage_bunker(data.damage)

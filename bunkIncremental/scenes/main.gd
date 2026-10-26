@@ -10,11 +10,20 @@ const PICKUP_SCENE := preload("res://scenes/entities/pickup.tscn")
 @export var posisi_tanah_y: float = 260.0
 @export var jeda_kunci_tab: float = 0.25
 @export var jarak_pintu_bunker: float = 190.0
+## Batas gerak pemain di dunia luar. Disimpan di sini supaya saat keluar dari
+## bunker kita bisa mengembalikannya tanpa menebak angka.
+@export var batas_pemain_kiri: float = 104.0
+@export var batas_pemain_kanan: float = 622.0
 
 @onready var entitas: Node2D = $Entities
 @onready var pemain = $Player
 @onready var hud = $UI/HUD
 @onready var terminal = $UI/Terminal
+@onready var skill_panel = $UI/SkillPanel
+@onready var dunia: Node2D = $World
+@onready var pagar: Node2D = $Pagar
+@onready var interior: Node2D = $Interior
+@onready var mount_depan: Node2D = $MountDepan
 
 var _sisa_spawn: int = 0
 var _timer_spawn: float = 0.0
@@ -35,12 +44,15 @@ func _ready() -> void:
 	GameState.pesan.connect(hud.tampilkan_pesan)
 	hud.hubungkan_pemain(pemain)
 	terminal.ditutup.connect(_on_terminal_ditutup)
+	skill_panel.ditutup.connect(_on_panel_ditutup)
 	_mulai_wave()
 
 
 func _process(delta: float) -> void:
 	_kunci_tab = maxf(0.0, _kunci_tab - delta)
 	_tangani_input()
+	if pemain.di_dalam:
+		_tangani_tangga()
 	_proses_wave(delta)
 	_cek_bunker()
 
@@ -50,16 +62,89 @@ func _process(delta: float) -> void:
 # ---------------------------------------------------------------------------
 
 func _tangani_input() -> void:
-	if _kunci_tab > 0.0 or terminal.visible:
+	if _kunci_tab > 0.0 or terminal.visible or skill_panel.visible:
 		return
 
 	if Input.is_action_just_pressed("buka_panel"):
 		_buka_terminal()
+	elif Input.is_action_just_pressed("buka_skill"):
+		_kunci_tab = jeda_kunci_tab
+		skill_panel.buka()
 	elif Input.is_action_just_pressed("interaksi"):
-		if pemain.global_position.x < jarak_pintu_bunker:
-			_buka_terminal()
-		else:
-			GameState.pesan.emit("Move closer to the bunker door", Color(0.7, 0.75, 0.82))
+		_tangani_interaksi()
+
+
+## E dipakai untuk dua hal: masuk/keluar bunker, dan membuka terminal kalau
+## pemain berdiri dekat pintu dari luar. Terminal tetap bisa dibuka dengan Tab
+## di mana saja, termasuk saat di dalam bunker.
+func _tangani_interaksi() -> void:
+	if pemain.di_dalam:
+		_coba_keluar_bunker()
+		return
+
+	if pemain.global_position.x < jarak_pintu_bunker:
+		_masuk_bunker()
+	else:
+		GameState.pesan.emit("Move closer to the bunker door", Color(0.7, 0.75, 0.82))
+
+
+func _masuk_bunker() -> void:
+	pemain.masuk_bunker(
+		interior.posisi_masuk(),
+		interior.BATAS_KIRI,
+		interior.BATAS_KANAN,
+		1
+	)
+	interior.masuk()
+	dunia.visible = false
+	pagar.visible = false
+	entitas.visible = false
+	mount_depan.visible = false
+	hud.atur_petunjuk_terlihat(false)
+	GameState.pesan.emit("Inside the bunker. Time keeps moving.", Color(0.85, 0.80, 0.62))
+
+
+func _coba_keluar_bunker() -> void:
+	if pemain.lantai >= 2:
+		GameState.pesan.emit("Climb down the stairs first", Color(0.7, 0.75, 0.82))
+		return
+	if not interior.di_zona_pintu(pemain.global_position.x):
+		GameState.pesan.emit("Move to the door to leave", Color(0.7, 0.75, 0.82))
+		return
+	_keluar_bunker()
+
+
+func _keluar_bunker() -> void:
+	pemain.keluar_bunker(Vector2(150.0, posisi_tanah_y), batas_pemain_kiri, batas_pemain_kanan)
+	interior.keluar()
+	dunia.visible = true
+	pagar.visible = true
+	entitas.visible = true
+	mount_depan.visible = true
+	hud.atur_petunjuk_terlihat(true)
+	GameState.pesan.emit("Back outside", Color(0.85, 0.80, 0.62))
+
+
+## Naik/turun lantai. Hanya bisa dari zona tangga, dan lantai 2 tetap
+## terkunci sampai Tower Access dibeli.
+func _tangani_tangga() -> void:
+	if not interior.di_zona_tangga(pemain.global_position.x):
+		return
+
+	if not interior.lantai_2_terbuka():
+		if Input.is_action_just_pressed("gerak_atas"):
+			GameState.pesan.emit(
+				"The stairwell is sealed — Tower Access required",
+				Color(1.0, 0.62, 0.30)
+			)
+		return
+
+	if Input.is_action_just_pressed("gerak_atas") and pemain.lantai == 1:
+		pemain.pindah_lantai(2, interior.posisi_naik())
+		GameState.pesan.emit("Up to the tower floor", Color(0.85, 0.80, 0.62))
+	elif Input.is_action_just_pressed("gerak_bawah") and pemain.lantai == 2:
+		pemain.pindah_lantai(1, interior.posisi_turun())
+		GameState.pesan.emit("Back on the ground floor", Color(0.85, 0.80, 0.62))
 
 
 func _buka_terminal() -> void:
@@ -68,6 +153,10 @@ func _buka_terminal() -> void:
 
 
 func _on_terminal_ditutup() -> void:
+	_kunci_tab = jeda_kunci_tab
+
+
+func _on_panel_ditutup() -> void:
 	_kunci_tab = jeda_kunci_tab
 
 
@@ -177,11 +266,20 @@ func _cek_bunker() -> void:
 	GameState.minyak -= hilang
 	GameState.resource_berubah.emit()
 
-	GameState.hp_bunker = GameState.HP_BUNKER_MAKS * 0.5
-	GameState.hp_bunker_berubah.emit(GameState.hp_bunker, GameState.HP_BUNKER_MAKS)
+	GameState.hp_bunker = GameState.hp_bunker_maks() * 0.5
+	GameState.hp_bunker_berubah.emit(GameState.hp_bunker, GameState.hp_bunker_maks())
+
+	# Malam diulang dari awal, jadi pagar juga dibangun ulang — kalau tidak,
+	# pemain yang sudah kehilangan separuh minyak langsung kena tembok kosong.
+	GameState.perbaiki_pagar(GameState.pagar_hp_maks())
 
 	_bersihkan_zombie()
 	GameState.wave_aktif = false
+
+	# Kalau pemain sedang di dalam, keluarkan paksa — pintu sudah jebol.
+	if pemain.di_dalam:
+		_keluar_bunker()
+
 	GameState.pesan.emit(
 		"The bunker was breached! Lost %d oil. Falling back..." % hilang,
 		Color(1.0, 0.32, 0.26)

@@ -10,11 +10,14 @@ extends Node
 const TUNGGU_DETIK := 2.5
 
 var _buka_terminal: bool = false
+var _buka_skill: bool = false
 var _tab: String = "market"
 var _nama: String = "layar"
 ## Skrip penyiapan state, misal "generator" untuk menyalakan generator
 ## dengan minyak dan antrean pabrik supaya tab POWER tidak tampak kosong.
 var _siapkan: String = ""
+## id skill yang mau dipilih di panel skill saat screenshot.
+var _pilih_skill: String = ""
 
 
 func _ready() -> void:
@@ -24,12 +27,19 @@ func _ready() -> void:
 	add_child(utama)
 
 	await get_tree().create_timer(0.2).timeout
-	_siapkan_state()
+	_siapkan_state(utama)
 
 	if _buka_terminal:
 		var terminal = utama.get_node("UI/Terminal")
 		terminal.buka()
 		terminal._ganti_tab(_tab)
+	elif _buka_skill:
+		var panel = utama.get_node("UI/SkillPanel")
+		panel.buka()
+		if _pilih_skill != "":
+			panel._terpilih = _pilih_skill
+			panel._perbarui_detail()
+			panel.queue_redraw()
 
 	await get_tree().create_timer(TUNGGU_DETIK).timeout
 	await RenderingServer.frame_post_draw
@@ -45,7 +55,7 @@ func _ready() -> void:
 	get_tree().quit()
 
 
-func _siapkan_state() -> void:
+func _siapkan_state(utama: Node) -> void:
 	match _siapkan:
 		"generator":
 			GameState.minyak = 24
@@ -60,17 +70,69 @@ func _siapkan_state() -> void:
 				GameState._tick_pabrik(0.1)
 		"idle":
 			GameState.minyak = 24
-			GameState.listrik = GameState.LISTRIK_MAKS
+			GameState.listrik = GameState.listrik_maks()
 			GameState.set_generator(true)
 			GameState._tick_generator(0.1)
+		"skill":
+			# Beberapa skill sudah dibeli supaya panel tidak tampak kosong.
+			GameState.uang = 640
+			for id in ["steady_aim", "quick_hands", "reinforced_door", "second_line", "haggler"]:
+				SkillTree._dimiliki[id] = true
+			SkillTree._invalidasi()
+			SkillTree.skill_berubah.emit()
+		"skill_baru":
+			GameState.uang = 1200
+		"pagar":
+			GameState.uang = 320
+			GameState.minyak = 12
+			GameState.hp_pagar = GameState.pagar_hp_maks() * 0.55
+			GameState.hp_bunker = GameState.hp_bunker_maks() * 0.8
+			GameState.wave = 8
+			GameState.hp_pagar_berubah.emit(GameState.hp_pagar, GameState.pagar_hp_maks())
+			GameState.hp_bunker_berubah.emit(GameState.hp_bunker, GameState.hp_bunker_maks())
+			_spawn_zombie_dekat(utama, 500.0)
+			_spawn_zombie_dekat(utama, 516.0)
+			_spawn_zombie_dekat(utama, 534.0)
+		"interior":
+			GameState.uang = 420
+			GameState.minyak = 18
+			GameState.hp_pemain = 42.0
+			GameState.hp_pemain_berubah.emit(GameState.hp_pemain, GameState.HP_PEMAIN_MAKS)
+			utama._masuk_bunker()
+			utama.pemain.global_position = Vector2(228.0, 264.0)
+		"interior_lantai_2":
+			GameState.uang = 120
+			for id in ["reinforced_door", "tower_access"]:
+				SkillTree._dimiliki[id] = true
+			SkillTree._invalidasi()
+			SkillTree.skill_berubah.emit()
+			utama._masuk_bunker()
+			utama.pemain.pindah_lantai(2, utama.interior.posisi_naik())
+			utama.pemain.global_position = Vector2(390.0, 170.0)
+
+
+func _spawn_zombie_dekat(utama: Node, x: float) -> void:
+	if utama == null:
+		return
+	var zombie = preload("res://scenes/entities/zombie.tscn").instantiate()
+	zombie.wave_ke = GameState.wave
+	zombie.position = Vector2(x, 260.0)
+	var entitas := utama.get_node_or_null("Entities")
+	if entitas != null:
+		entitas.add_child(zombie)
+		GameState.catat_zombie_lahir()
 
 
 func _baca_argumen() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg == "--terminal":
 			_buka_terminal = true
+		elif arg == "--skill":
+			_buka_skill = true
 		elif arg.begins_with("--tab="):
 			_tab = arg.split("=")[1]
+		elif arg.begins_with("--pilih="):
+			_pilih_skill = arg.split("=")[1]
 		elif arg.begins_with("--nama="):
 			_nama = arg.split("=")[1]
 		elif arg.begins_with("--siapkan="):

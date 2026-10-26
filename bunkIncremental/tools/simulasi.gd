@@ -48,8 +48,8 @@ func _ready() -> void:
 
 	_pemain = _utama.get_node("Player")
 	print("=== SIMULASI: %.0f menit, strategi '%s' ===" % [_menit, _strategi])
-	print("%8s %6s %8s %8s %8s %8s %8s %8s" % [
-		"waktu", "wave", "bunuh", "minyak", "logam", "uang", "9mm", "bunker"
+	print("%8s %6s %8s %8s %8s %8s %8s %8s %8s" % [
+		"waktu", "wave", "bunuh", "minyak", "logam", "uang", "9mm", "bunker", "pagar"
 	])
 
 
@@ -106,9 +106,53 @@ func _bot_bertindak(delta: float) -> void:
 	if GameState.hp_bunker < 70.0 and GameState.uang >= GameState.biaya_perbaikan():
 		GameState.beli_perbaikan(25.0)
 
+	# Perbaiki pagar — lebih murah daripada membiarkannya jebol.
+	if GameState.biaya_perbaikan_pagar() > 0 and GameState.uang >= GameState.biaya_perbaikan_pagar() + 60:
+		GameState.beli_perbaikan_pagar()
+
+	_bot_beli_skill()
+
 	# Pakai medkit kalau sekarat.
 	if GameState.hp_pemain < 45.0:
 		GameState.pakai_obat()
+
+
+## Bot membeli skill sesuai urutan prioritas strateginya. Ini juga berfungsi
+## sebagai pemeriksaan tidak langsung: kalau ada skill yang mustahil dibeli
+## (prasyarat salah, biaya tidak masuk akal), progres bot akan macet.
+func _bot_beli_skill() -> void:
+	var prioritas: Array = URUTAN_SKILL_TEMPUR
+	if _strategi == "ekonomi":
+		prioritas = URUTAN_SKILL_EKONOMI
+
+	for id in prioritas:
+		if SkillTree.sudah_dimiliki(id):
+			continue
+		# Sisakan uang untuk perbaikan darurat.
+		if GameState.uang < 120:
+			return
+		if SkillTree.beli(id):
+			return
+		# Kalau yang ini terkunci prasyaratnya, lanjut ke kandidat lain
+		# supaya bot tidak berhenti total.
+		if SkillTree.alasan_tidak_bisa(id) == "prasyarat":
+			continue
+		return
+
+
+const URUTAN_SKILL_TEMPUR := [
+	"steady_aim", "reinforced_door", "quick_hands", "barbed_wire",
+	"hollow_point", "tower_access", "auto_patch", "fuel_injector",
+	"second_line", "haggler", "backup_generator", "scrap_saver",
+	"bulk_contract", "overclock", "night_market",
+]
+
+const URUTAN_SKILL_EKONOMI := [
+	"second_line", "haggler", "reinforced_door", "scrap_saver",
+	"steady_aim", "barbed_wire", "bulk_contract", "overclock",
+	"tower_access", "quick_hands", "night_market", "fuel_injector",
+	"auto_patch", "hollow_point", "backup_generator",
+]
 
 
 ## Prediksi posisi zombie saat peluru tiba (lead shot), supaya bot tidak
@@ -185,7 +229,7 @@ func _lapor_berkala() -> void:
 
 
 func _catat() -> void:
-	var baris := "%8s %6d %8d %8d %8d %8d %8d %8.0f" % [
+	var baris := "%8s %6d %8d %8d %8d %8d %8d %8.0f %8.0f" % [
 		Formatter.waktu(_waktu_game),
 		GameState.wave,
 		GameState.statistik["zombie_dibunuh"],
@@ -194,6 +238,7 @@ func _catat() -> void:
 		GameState.uang,
 		GameState.jumlah_peluru("9mm"),
 		GameState.hp_bunker,
+		GameState.hp_pagar,
 	]
 	print(baris)
 	_log.append(baris)
@@ -222,12 +267,22 @@ func _ringkasan() -> void:
 		print("Daya terpakai  : %.1f" % GameState.statistik["daya_terpakai"])
 		print("Efisiensi      : %.2f power terpakai per oil (ideal %.0f)" % [
 			float(GameState.statistik["daya_terpakai"]) / terbakar,
-			GameState.LISTRIK_PER_BARA,
+			GameState.listrik_per_bara(),
 		])
 	else:
 		print("Efisiensi      : tidak ada minyak terbakar")
-	print("Bunker HP      : %.0f / %.0f" % [GameState.hp_bunker, GameState.HP_BUNKER_MAKS])
+	print("Bunker HP      : %.0f / %.0f" % [GameState.hp_bunker, GameState.hp_bunker_maks()])
+	print("Fence HP       : %.0f / %.0f" % [GameState.hp_pagar, GameState.pagar_hp_maks()])
 	print("Pemain HP      : %.0f / %.0f" % [GameState.hp_pemain, GameState.HP_PEMAIN_MAKS])
+	print("Skill dibeli   : %d / %d" % [SkillTree.jumlah_dimiliki(), SkillTree.semua().size()])
+	var daftar_skill: Array = []
+	for item in SkillTree.semua():
+		if item is Skill and SkillTree.sudah_dimiliki(item.id):
+			daftar_skill.append(item.nama)
+	if daftar_skill.is_empty():
+		print("  (belum ada)")
+	else:
+		print("  %s" % ", ".join(daftar_skill))
 
 
 func _baca_argumen() -> void:

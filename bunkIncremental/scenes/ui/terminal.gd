@@ -15,6 +15,7 @@ const WARNA_BURUK := Color(1.0, 0.45, 0.32)
 const WARNA_MINYAK := Color(0.91, 0.51, 0.23)
 const WARNA_LISTRIK := Color(0.95, 0.85, 0.35)
 const WARNA_BUNKER := Color(0.36, 0.62, 0.86)
+const WARNA_PAGAR := Color(0.72, 0.62, 0.42)
 
 const DAFTAR_TAB := ["market", "repair", "generator", "factory"]
 const LABEL_TAB := {
@@ -238,49 +239,75 @@ func _bangun_market() -> void:
 
 
 func _bangun_repair() -> void:
-	_wadah_konten.add_child(_buat_label("BUNKER INTEGRITY", 10, WARNA_TEKS))
+	# Dua kolom: bunker di kiri, pagar di kanan. Versi satu kolom membuat
+	# seksi pagar terdorong keluar panel karena total tingginya melebihi
+	# tinggi terminal.
+	var kolom := HBoxContainer.new()
+	kolom.add_theme_constant_override("separation", 16)
+	_wadah_konten.add_child(kolom)
 
-	_label["hp_bunker"] = _buat_label("", 15, WARNA_BUNKER)
-	_wadah_konten.add_child(_label["hp_bunker"])
+	var kiri := _buat_kolom(kolom)
+	var kanan := _buat_kolom(kolom)
 
-	var bar := ProgressBar.new()
-	bar.show_percentage = false
-	bar.custom_minimum_size = Vector2(0, 7)
-	bar.max_value = GameState.HP_BUNKER_MAKS
+	# --- Bunker (kiri) ---
+	kiri.add_child(_buat_label("BUNKER INTEGRITY", 9, WARNA_TEKS))
+
+	_label["hp_bunker"] = _buat_label("", 13, WARNA_BUNKER)
+	kiri.add_child(_label["hp_bunker"])
+
+	var bar := _buat_bar(WARNA_BUNKER, 6)
+	bar.max_value = GameState.hp_bunker_maks()
 	bar.value = GameState.hp_bunker
-	var latar := StyleBoxFlat.new()
-	latar.bg_color = Color(0.0, 0.0, 0.0, 0.6)
-	var isi := StyleBoxFlat.new()
-	isi.bg_color = WARNA_BUNKER
-	bar.add_theme_stylebox_override("background", latar)
-	bar.add_theme_stylebox_override("fill", isi)
-	_wadah_konten.add_child(bar)
+	kiri.add_child(bar)
 	_label["bar_bunker"] = bar
 
-	_wadah_konten.add_child(_buat_pemisah())
-
-	_label["biaya_repair"] = _buat_label("", 9, WARNA_TEKS)
-	_wadah_konten.add_child(_label["biaya_repair"])
+	_label["biaya_repair"] = _buat_label("", 8, WARNA_TEKS)
+	kiri.add_child(_label["biaya_repair"])
 
 	_label["peringatan_repair"] = _buat_label("", 8, WARNA_BURUK)
 	_label["peringatan_repair"].autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_label["peringatan_repair"].custom_minimum_size = Vector2(0, 22)
-	_wadah_konten.add_child(_label["peringatan_repair"])
+	_label["peringatan_repair"].custom_minimum_size = Vector2(0, 20)
+	kiri.add_child(_label["peringatan_repair"])
 
-	var baris := HBoxContainer.new()
-	baris.add_theme_constant_override("separation", 5)
-	_wadah_konten.add_child(baris)
+	var baris_bunker := HBoxContainer.new()
+	baris_bunker.add_theme_constant_override("separation", 5)
+	kiri.add_child(baris_bunker)
 
-	_tombol["repair_25"] = _buat_tombol(baris, "PATCH +25 HP", _on_repair.bind(25.0))
-	_tombol["repair_penuh"] = _buat_tombol(baris, "FULL REBUILD", _on_repair.bind(999.0))
+	_tombol["repair_25"] = _buat_tombol(baris_bunker, "PATCH +25 HP", _on_repair.bind(25.0))
+	_tombol["repair_penuh"] = _buat_tombol(baris_bunker, "FULL REBUILD", _on_repair.bind(999.0))
+
+	# --- Pagar (kanan) ---
+	kanan.add_child(_buat_label("PERIMETER FENCE", 9, WARNA_TEKS))
+
+	_label["hp_pagar"] = _buat_label("", 13, WARNA_PAGAR)
+	kanan.add_child(_label["hp_pagar"])
+
+	var bar_pagar := _buat_bar(WARNA_PAGAR, 6)
+	bar_pagar.max_value = GameState.pagar_hp_maks()
+	bar_pagar.value = GameState.hp_pagar
+	kanan.add_child(bar_pagar)
+	_label["bar_pagar"] = bar_pagar
+
+	_label["info_pagar"] = _buat_label("", 8, WARNA_REDUP)
+	_label["info_pagar"].autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_label["info_pagar"].custom_minimum_size = Vector2(0, 20)
+	kanan.add_child(_label["info_pagar"])
+
+	# Penyangga supaya tombol pagar sejajar dengan baris tombol bunker.
+	var penyangga := Control.new()
+	penyangga.custom_minimum_size = Vector2(0, 0)
+	penyangga.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	kanan.add_child(penyangga)
+
+	_tombol["repair_pagar"] = _buat_tombol(kanan, "REBUILD FENCE", _on_repair_pagar)
 
 	var catatan := _buat_label(
-		"Concrete and steel cost money. If the bunker falls, you lose oil and the night starts over.",
+		"Concrete and steel cost money. The fence holds the line; if it falls, zombies go for the door.",
 		8,
 		WARNA_REDUP
 	)
 	catatan.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	catatan.custom_minimum_size = Vector2(0, 24)
+	catatan.custom_minimum_size = Vector2(0, 20)
 	_wadah_konten.add_child(catatan)
 
 
@@ -296,7 +323,7 @@ func _bangun_generator() -> void:
 	var bar := ProgressBar.new()
 	bar.show_percentage = false
 	bar.custom_minimum_size = Vector2(0, 7)
-	bar.max_value = GameState.LISTRIK_MAKS
+	bar.max_value = GameState.listrik_maks()
 	bar.value = GameState.listrik
 	var latar := StyleBoxFlat.new()
 	latar.bg_color = Color(0.0, 0.0, 0.0, 0.6)
@@ -401,6 +428,10 @@ func _on_repair(jumlah: float) -> void:
 	GameState.beli_perbaikan(jumlah)
 
 
+func _on_repair_pagar() -> void:
+	GameState.beli_perbaikan_pagar()
+
+
 func _on_buat(jumlah: int) -> void:
 	var berhasil := 0
 	for i in range(jumlah):
@@ -437,7 +468,7 @@ func _perbarui_market() -> void:
 	if not _label.has("harga"):
 		return
 
-	_label["harga"].text = "$%s / unit" % Formatter.harga(GameState.harga_minyak)
+	_label["harga"].text = "$%s / unit" % Formatter.harga(GameState.harga_jual_efektif())
 
 	var tren := "stable"
 	var warna := WARNA_REDUP
@@ -453,7 +484,7 @@ func _perbarui_market() -> void:
 	_label["refresh"].add_theme_color_override("font_color", warna)
 
 	_label["stok"].text = "You hold %d oil  →  $%d" % [
-		GameState.minyak, Ekonomi.nilai_jual(GameState.minyak, GameState.harga_minyak)
+		GameState.minyak, GameState.nilai_jual(GameState.minyak)
 	]
 
 	if _tombol.has("jual_1"):
@@ -466,13 +497,13 @@ func _perbarui_repair() -> void:
 	if not _label.has("hp_bunker"):
 		return
 
-	_label["hp_bunker"].text = "%d / %d HP" % [int(GameState.hp_bunker), int(GameState.HP_BUNKER_MAKS)]
+	_label["hp_bunker"].text = "%d / %d HP" % [int(GameState.hp_bunker), int(GameState.hp_bunker_maks())]
 	_label["bar_bunker"].value = GameState.hp_bunker
 
 	var biaya := GameState.biaya_perbaikan()
 	_label["biaya_repair"].text = "Repair cost: $%d   ·   You have: $%d" % [biaya, GameState.uang]
 
-	var kurang := GameState.HP_BUNKER_MAKS - GameState.hp_bunker
+	var kurang := GameState.hp_bunker_maks() - GameState.hp_bunker
 	if kurang <= 0.5:
 		_label["peringatan_repair"].text = "Structure intact. Nothing to fix."
 		_label["peringatan_repair"].add_theme_color_override("font_color", WARNA_BAIK)
@@ -487,6 +518,37 @@ func _perbarui_repair() -> void:
 	if _tombol.has("repair_25"):
 		_tombol["repair_25"].disabled = not bisa
 		_tombol["repair_penuh"].disabled = not bisa
+
+	_perbarui_pagar()
+
+
+func _perbarui_pagar() -> void:
+	if not _label.has("hp_pagar"):
+		return
+
+	var maks := GameState.pagar_hp_maks()
+	_label["hp_pagar"].text = "%d / %d HP" % [int(GameState.hp_pagar), int(maks)]
+	_label["bar_pagar"].max_value = maks
+	_label["bar_pagar"].value = GameState.hp_pagar
+
+	var kurang := maks - GameState.hp_pagar
+	var biaya := GameState.biaya_perbaikan_pagar()
+
+	if kurang <= 0.5:
+		_label["info_pagar"].text = "Fence standing. Zombies stop here."
+		_label["info_pagar"].add_theme_color_override("font_color", WARNA_BAIK)
+	elif GameState.hp_pagar <= 0.0:
+		_label["info_pagar"].text = "FENCE DOWN — rebuild for $%d. You have $%d." % [biaya, GameState.uang]
+		_label["info_pagar"].add_theme_color_override("font_color", WARNA_BURUK)
+	elif GameState.uang < biaya:
+		_label["info_pagar"].text = "Damaged. Repair costs $%d, you have $%d." % [biaya, GameState.uang]
+		_label["info_pagar"].add_theme_color_override("font_color", WARNA_BURUK)
+	else:
+		_label["info_pagar"].text = "Damaged. Repair costs $%d." % biaya
+		_label["info_pagar"].add_theme_color_override("font_color", WARNA_REDUP)
+
+	if _tombol.has("repair_pagar"):
+		_tombol["repair_pagar"].disabled = kurang <= 0.5 or GameState.uang < biaya
 
 
 func _perbarui_generator() -> void:
@@ -506,7 +568,7 @@ func _perbarui_generator() -> void:
 			_label["status_gen"].add_theme_color_override("font_color", WARNA_BURUK)
 
 	_label["daya"].text = "Stored power: %s / %s" % [
-		Formatter.angka(GameState.listrik), Formatter.angka(GameState.LISTRIK_MAKS)
+		Formatter.angka(GameState.listrik), Formatter.angka(GameState.listrik_maks())
 	]
 	_label["bar_daya"].value = GameState.listrik
 	_label["bahan_bakar"].text = "Fuel tank: %d crude oil" % GameState.minyak
@@ -535,7 +597,7 @@ func _perbarui_factory() -> void:
 	var jumlah_antre := GameState.antrean_pabrik.size()
 
 	_label["antrean"].text = "Queue: %d / %d    ·    Scrap: %d    ·    9mm in stock: %d" % [
-		jumlah_antre, GameState.KAPASITAS_ANTREAN, GameState.logam,
+		jumlah_antre, GameState.kapasitas_antrean(), GameState.logam,
 		GameState.jumlah_peluru("9mm")
 	]
 
@@ -553,7 +615,7 @@ func _perbarui_factory() -> void:
 	else:
 		_label["peringatan"].text = ""
 
-	var bisa := GameState.logam >= resep.logam and jumlah_antre < GameState.KAPASITAS_ANTREAN
+	var bisa := GameState.logam >= resep.logam and jumlah_antre < GameState.kapasitas_antrean()
 	if _tombol.has("buat_1"):
 		_tombol["buat_1"].disabled = not bisa
 		_tombol["buat_5"].disabled = not bisa
@@ -575,6 +637,8 @@ func _buat_tombol(induk: Node, teks: String, aksi: Callable) -> Button:
 	var tombol := Button.new()
 	tombol.text = teks
 	tombol.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Tanpa ini, tombol di dalam VBox ikut melar setinggi sisa ruang.
+	tombol.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	tombol.pressed.connect(aksi)
 	induk.add_child(tombol)
 	return tombol
@@ -582,3 +646,25 @@ func _buat_tombol(induk: Node, teks: String, aksi: Callable) -> Button:
 
 func _buat_pemisah() -> HSeparator:
 	return HSeparator.new()
+
+
+## Kolom vertikal di dalam baris dua-kolom. Dipakai tab REPAIR.
+func _buat_kolom(induk: Node) -> VBoxContainer:
+	var kolom := VBoxContainer.new()
+	kolom.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	kolom.add_theme_constant_override("separation", 4)
+	induk.add_child(kolom)
+	return kolom
+
+
+func _buat_bar(warna: Color, tinggi: int) -> ProgressBar:
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, tinggi)
+	var latar := StyleBoxFlat.new()
+	latar.bg_color = Color(0.0, 0.0, 0.0, 0.6)
+	var isi := StyleBoxFlat.new()
+	isi.bg_color = warna
+	bar.add_theme_stylebox_override("background", latar)
+	bar.add_theme_stylebox_override("fill", isi)
+	return bar

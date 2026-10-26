@@ -1,0 +1,191 @@
+[gd_resource type="Resource" script_class="PohonSkill" format=3 uid="uid://cvkndy46ku037"]
+
+[ext_resource type="Script" uid="uid://exu5hnaxi7jh" path="res://data/pohon_skill.gd" id="1_pohon"]
+[ext_resource type="Script" uid="uid://cesm3mkk0di32" path="res://data/skill.gd" id="2_skill"]
+
+[sub_resource type="Resource" id="Skill_steady_aim"]
+script = ExtResource("2_skill")
+id = "steady_aim"
+nama = "Steady Aim"
+deskripsi = "Brace the pistol. Every round hits harder."
+biaya = 120
+efek = {
+"damage_persen": 20.0
+}
+
+[sub_resource type="Resource" id="Skill_quick_hands"]
+script = ExtResource("2_skill")
+id = "quick_hands"
+nama = "Quick Hands"
+tier = 2
+deskripsi = "Muscle memory beats panic. Magazines go in faster."
+biaya = 220
+prasyarat = ["steady_aim"]
+efek = {
+"reload_persen": -25.0
+}
+
+[sub_resource type="Resource" id="Skill_hollow_point"]
+script = ExtResource("2_skill")
+id = "hollow_point"
+nama = "Hollow Point"
+tier = 3
+deskripsi = "Hand-loaded rounds. Ugly exit wounds."
+biaya = 480
+prasyarat = ["quick_hands"]
+efek = {
+"damage_persen": 25.0
+}
+
+[sub_resource type="Resource" id="Skill_reinforced_door"]
+script = ExtResource("2_skill")
+id = "reinforced_door"
+nama = "Reinforced Door"
+cabang = "fortify"
+deskripsi = "Steel plate over the hinges. The door holds longer."
+biaya = 150
+efek = {
+"hp_bunker_tambah": 25.0
+}
+
+[sub_resource type="Resource" id="Skill_barbed_wire"]
+script = ExtResource("2_skill")
+id = "barbed_wire"
+nama = "Barbed Wire"
+cabang = "fortify"
+tier = 2
+deskripsi = "Coils along the fence line. They tear themselves open getting through."
+biaya = 280
+prasyarat = ["reinforced_door"]
+efek = {
+"hp_pagar_persen": 60.0
+}
+
+[sub_resource type="Resource" id="Skill_auto_patch"]
+script = ExtResource("2_skill")
+id = "auto_patch"
+nama = "Auto Patch"
+cabang = "fortify"
+tier = 3
+deskripsi = "A slow drip of sealant. The bunker mends itself, a little at a time."
+biaya = 520
+prasyarat = ["barbed_wire"]
+efek = {
+"regen_bunker": 1.0
+}
+
+[sub_resource type="Resource" id="Skill_second_line"]
+script = ExtResource("2_skill")
+id = "second_line"
+nama = "Second Line"
+cabang = "industry"
+deskripsi = "A second bench on the factory floor. One more order in the queue."
+biaya = 180
+efek = {
+"slot_pabrik_tambah": 1.0
+}
+
+[sub_resource type="Resource" id="Skill_scrap_saver"]
+script = ExtResource("2_skill")
+id = "scrap_saver"
+nama = "Salvage Press"
+cabang = "industry"
+tier = 2
+deskripsi = "Press the scrap tighter. Each batch yields a few more rounds."
+biaya = 320
+prasyarat = ["second_line"]
+efek = {
+"hasil_persen": 25.0
+}
+
+[sub_resource type="Resource" id="Skill_overclock"]
+script = ExtResource("2_skill")
+id = "overclock"
+nama = "Overclock"
+cabang = "industry"
+tier = 3
+deskripsi = "Run the press hot. The line moves faster."
+biaya = 560
+prasyarat = ["scrap_saver"]
+efek = {
+"kecepatan_produksi_persen": 30.0
+}
+
+[sub_resource type="Resource" id="Skill_haggler"]
+script = ExtResource("2_skill")
+id = "haggler"
+nama = "Haggler"
+cabang = "economy"
+deskripsi = "Never take the first offer. The buyer knows you won't."
+biaya = 140
+efek = {
+"harga_jual_persen": 10.0
+}
+
+[sub_resource type="Resource" id="Skill_bulk_contract"]
+script = ExtResource("2_skill")
+id = "bulk_contract"
+nama = "Bulk Contract"
+cabang = "economy"
+tier = 2
+deskripsi = "A standing order from a trader who no longer asks questions."
+biaya = 260
+prasyarat = ["haggler"]
+efek = {
+"harga_jual_persen": 15.0
+}
+
+[sub_resource type="Resource" id="Skill_night_market"]
+script = ExtResource("2_skill")
+id = "night_market"
+nama = "Night Market"
+cabang = "economy"
+tier = 3
+deskripsi = "Traders move in the dark. Prices turn over twice as fast."
+biaya = 460
+prasyarat = ["bulk_contract"]
+efek = {
+"refresh_harga_persen": -50.0
+}
+
+[sub_resource type="Resource" id="Skill_tower_access"]
+script = ExtResource("2_skill")
+id = "tower_access"
+nama = "Tower Access"
+cabang = "engineering"
+deskripsi = "Cut a stairwell through the ceiling. The upper floor is yours."
+biaya = 250
+prasyarat = ["reinforced_door"]
+efek = {
+"buka_lantai_2": 1.0
+}
+
+[sub_resource type="Resource" id="Skill_fuel_injector"]
+script = ExtResource("2_skill")
+id = "fuel_injector"
+nama = "Fuel Injector"
+cabang = "engineering"
+tier = 2
+deskripsi = "Atomise the crude before it burns. More power from the same barrel."
+biaya = 420
+prasyarat = ["tower_access"]
+efek = {
+"power_per_oil_tambah": 2.0
+}
+
+[sub_resource type="Resource" id="Skill_backup_generator"]
+script = ExtResource("2_skill")
+id = "backup_generator"
+nama = "Backup Generator"
+cabang = "engineering"
+tier = 3
+deskripsi = "A second bank of cells. The bunker can hold a deeper charge."
+biaya = 900
+prasyarat = ["fuel_injector"]
+efek = {
+"listrik_maks_tambah": 15.0
+}
+
+[resource]
+script = ExtResource("1_pohon")
+daftar = [SubResource("Skill_steady_aim"), SubResource("Skill_quick_hands"), SubResource("Skill_hollow_point"), SubResource("Skill_reinforced_door"), SubResource("Skill_barbed_wire"), SubResource("Skill_auto_patch"), SubResource("Skill_second_line"), SubResource("Skill_scrap_saver"), SubResource("Skill_overclock"), SubResource("Skill_haggler"), SubResource("Skill_bulk_contract"), SubResource("Skill_night_market"), SubResource("Skill_tower_access"), SubResource("Skill_fuel_injector"), SubResource("Skill_backup_generator")]
