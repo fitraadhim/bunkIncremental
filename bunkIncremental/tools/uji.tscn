@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tools/uji.gd" id="1_uji"]
+
+[node name="Uji" type="Node"]
+script = ExtResource("1_uji")

@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/entities/peluru.gd" id="1_peluru"]
+[ext_resource type="Texture2D" path="res://art/placeholder/peluru.png" id="2_sprite"]
+
+[node name="Peluru" type="Node2D"]
+z_index = 4
+script = ExtResource("1_peluru")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_sprite")

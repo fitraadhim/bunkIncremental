@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Musuh" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/musuh.gd" id="1_musuh"]
+
+[resource]
+script = ExtResource("1_musuh")
+id = "zombie_biasa"
+nama = "Walker"
+hp = 20.0
+kecepatan = 34.0
+damage = 4.0
+jeda_serang = 1.1
+drop_minyak = Vector2i(2, 4)
+drop_logam = Vector2i(1, 2)
+peluang_obat = 0.03
+warna = Color(0.42, 0.56, 0.31, 1)
+skala = 1.0

@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/world/world.gd" id="1_world"]
+[ext_resource type="Texture2D" path="res://art/placeholder/bunker.png" id="2_bunker"]
+
+[node name="World" type="Node2D"]
+script = ExtResource("1_world")
+
+[node name="Bunker" type="Sprite2D" parent="."]
+position = Vector2(48, 212)
+texture = ExtResource("2_bunker")
+
+[node name="TitikBunker" type="Node2D" parent="." groups=["bunker"]]
+position = Vector2(104, 260)

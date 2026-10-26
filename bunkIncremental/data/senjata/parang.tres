@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Senjata" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/senjata.gd" id="1_senjata"]
+
+[resource]
+script = ExtResource("1_senjata")
+id = "parang"
+nama = "Machete"
+jenis = "tebas"
+kaliber = ""
+damage = 15.0
+cooldown = 0.6
+jangkauan_tebas = 26.0
+kapasitas_magasin = 0
+waktu_reload = 0.0
+harga_buka = 0
+deskripsi = "Never runs out of ammo. Never feels safe either."

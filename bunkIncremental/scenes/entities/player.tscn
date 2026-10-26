@@ -1,0 +1,23 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes/entities/player.gd" id="1_player"]
+[ext_resource type="Texture2D" path="res://art/placeholder/player.png" id="2_sprite"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pemain"]
+size = Vector2(10, 22)
+
+[node name="Player" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_player")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_sprite")
+offset = Vector2(0, -12)
+
+[node name="Bentuk" type="CollisionShape2D" parent="."]
+position = Vector2(0, -11)
+shape = SubResource("RectangleShape2D_pemain")
+
+[node name="Muzzle" type="Marker2D" parent="."]
+position = Vector2(9, -14)

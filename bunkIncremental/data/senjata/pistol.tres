@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Senjata" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/senjata.gd" id="1_senjata"]
+
+[resource]
+script = ExtResource("1_senjata")
+id = "pistol"
+nama = "Pistol"
+jenis = "tembak"
+kaliber = "9mm"
+damage = 10.0
+cooldown = 0.4
+jangkauan_tebas = 26.0
+kapasitas_magasin = 12
+waktu_reload = 1.2
+harga_buka = 0
+deskripsi = "Reliable sidearm. Cheap to feed, slow to kill."
