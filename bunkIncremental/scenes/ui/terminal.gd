@@ -312,8 +312,11 @@ func _bangun_generator() -> void:
 	_label["bahan_bakar"] = _buat_label("", 9, WARNA_TEKS)
 	_wadah_konten.add_child(_label["bahan_bakar"])
 
+	_label["konsumsi"] = _buat_label("", 9, WARNA_LISTRIK)
+	_wadah_konten.add_child(_label["konsumsi"])
+
 	var catatan := _buat_label(
-		"Burns 1 crude oil every 2s and stores 10 power. Stops when the tank is full.",
+		"Burns fuel only as needed — 1 crude oil per 10 power. No fuel is wasted when the battery is full.",
 		8,
 		WARNA_REDUP
 	)
@@ -490,18 +493,34 @@ func _perbarui_generator() -> void:
 	if not _label.has("status_gen"):
 		return
 
-	if GameState.generator_aktif:
-		_label["status_gen"].text = "RUNNING"
-		_label["status_gen"].add_theme_color_override("font_color", WARNA_BAIK)
-	else:
-		_label["status_gen"].text = "STOPPED"
-		_label["status_gen"].add_theme_color_override("font_color", WARNA_BURUK)
+	var status := GameState.status_generator()
+	match status:
+		"running":
+			_label["status_gen"].text = "RUNNING"
+			_label["status_gen"].add_theme_color_override("font_color", WARNA_BAIK)
+		"idle":
+			_label["status_gen"].text = "IDLE — BATTERY FULL"
+			_label["status_gen"].add_theme_color_override("font_color", WARNA_AKSEN)
+		_:
+			_label["status_gen"].text = "STOPPED"
+			_label["status_gen"].add_theme_color_override("font_color", WARNA_BURUK)
 
 	_label["daya"].text = "Stored power: %s / %s" % [
 		Formatter.angka(GameState.listrik), Formatter.angka(GameState.LISTRIK_MAKS)
 	]
 	_label["bar_daya"].value = GameState.listrik
 	_label["bahan_bakar"].text = "Fuel tank: %d crude oil" % GameState.minyak
+
+	var konsumsi := GameState.konsumsi_minyak_per_detik()
+	if status == "idle":
+		_label["konsumsi"].text = "Consumption: 0.00 oil/s  ·  holding full charge"
+		_label["konsumsi"].add_theme_color_override("font_color", WARNA_REDUP)
+	elif status == "stopped":
+		_label["konsumsi"].text = "Consumption: 0.00 oil/s"
+		_label["konsumsi"].add_theme_color_override("font_color", WARNA_REDUP)
+	else:
+		_label["konsumsi"].text = "Consumption: %.2f oil/s" % konsumsi
+		_label["konsumsi"].add_theme_color_override("font_color", WARNA_LISTRIK)
 
 	if _tombol.has("toggle_gen"):
 		_tombol["toggle_gen"].text = "SHUT DOWN" if GameState.generator_aktif else "START ENGINE"

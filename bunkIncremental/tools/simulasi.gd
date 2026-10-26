@@ -212,7 +212,20 @@ func _ringkasan() -> void:
 	])
 	print("Total uang     : $%d" % GameState.statistik["uang_didapat"])
 	print("Minyak kumpul  : %d" % GameState.statistik["minyak_terkumpul"])
+	print("Minyak terbakar: %d" % GameState.statistik["minyak_terbakar"])
 	print("Peluru dibuat  : %d" % GameState.statistik["peluru_dibuat"])
+
+	# Efisiensi bahan bakar: power yang benar-benar terpakai per 1 oil.
+	# Idealnya mendekati 10 (1 oil = 10 power) kalau tidak ada yang terbuang.
+	var terbakar := float(GameState.statistik["minyak_terbakar"])
+	if terbakar > 0.0:
+		print("Daya terpakai  : %.1f" % GameState.statistik["daya_terpakai"])
+		print("Efisiensi      : %.2f power terpakai per oil (ideal %.0f)" % [
+			float(GameState.statistik["daya_terpakai"]) / terbakar,
+			GameState.LISTRIK_PER_BARA,
+		])
+	else:
+		print("Efisiensi      : tidak ada minyak terbakar")
 	print("Bunker HP      : %.0f / %.0f" % [GameState.hp_bunker, GameState.HP_BUNKER_MAKS])
 	print("Pemain HP      : %.0f / %.0f" % [GameState.hp_pemain, GameState.HP_PEMAIN_MAKS])
 

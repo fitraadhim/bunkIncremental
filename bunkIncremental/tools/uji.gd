@@ -137,8 +137,13 @@ func _uji_game_state() -> void:
 	_cek("logam terpotong saat antre", GameState.logam == 2)
 	_cek("antrean terisi", GameState.antrean_pabrik.size() == 1)
 
-	# Generator butuh minyak
+	# ------------------------------------------------------------------
+	# Generator: bahan bakar harus proporsional, tidak boleh terbuang
+	# ------------------------------------------------------------------
+	GameState.antrean_pabrik.clear()
+	GameState.listrik = 0.0
 	GameState.minyak = 0
+	GameState._sisa_bara = 0.0
 	GameState.set_generator(true)
 	_cek("generator menolak tanpa minyak", GameState.generator_aktif == false)
 
@@ -146,29 +151,98 @@ func _uji_game_state() -> void:
 	GameState.set_generator(true)
 	_cek("generator menyala dengan minyak", GameState.generator_aktif == true)
 
-	# Simulasi 4 detik: harus membakar 2 minyak, dapat 20 listrik (di-cap 30).
+	# 4 detik pada 5 power/s = 20 power = tepat 2 oil (baterai cap 30, muat).
 	for i in range(40):
 		GameState._tick_generator(0.1)
 	_cek("generator membakar minyak", GameState.minyak == 3, "(dapat %d)" % GameState.minyak)
-	_cek("listrik terisi", GameState.listrik > 0.0, "(dapat %.1f)" % GameState.listrik)
+	_cek_dekat("4 detik menghasilkan 20 power", GameState.listrik, 20.0, 0.5)
+	_cek("status generator running", GameState.status_generator() == "running")
+
+	# --- Regresi bug v0.3.0: pembakaran borongan saat baterai hampir penuh ---
+	# Isi baterai sampai nyaris penuh, lalu tick sekali. Dulu generator membakar
+	# 1 oil utuh (+10) padahal hanya muat sedikit, dan sisanya hilang.
+	GameState.listrik = GameState.LISTRIK_MAKS - 1.0
+	GameState.minyak = 50
+	GameState._sisa_bara = 0.0
+	var minyak_sebelum := GameState.minyak
+	GameState._tick_generator(0.1)   # butuh 0.5 power, muat 1.0
+	_cek("tidak membakar 1 oil utuh saat hampir penuh",
+		GameState.minyak == minyak_sebelum,
+		"(dapat %d, harap %d)" % [GameState.minyak, minyak_sebelum])
+	_cek_dekat("hanya membakar pecahan yang diperlukan",
+		GameState._sisa_bara, 0.05, 0.011)
+
+	# --- Baterai penuh: nol konsumsi ---
+	GameState.listrik = GameState.LISTRIK_MAKS
+	GameState.minyak = 50
+	GameState._sisa_bara = 0.0
+	for i in range(100):
+		GameState._tick_generator(0.1)
+	_cek("generator tidak membakar saat baterai penuh", GameState.minyak == 50,
+		"(dapat %d)" % GameState.minyak)
+	_cek("status generator idle saat penuh", GameState.status_generator() == "idle")
+	_cek_dekat("konsumsi 0 saat idle", GameState.konsumsi_minyak_per_detik(), 0.0)
+
+	# --- Konservasi: oil x 10 == power yang dihasilkan ---
+	# Simulasi 2000 tick dengan beban pabrik bergantian. Kalau ada minyak
+	# yang terbuang, total daya tidak akan cocok dengan bahan bakar.
+	GameState.reset_penuh()
+	GameState.minyak = 100
+	GameState.logam = 500
+	GameState.listrik = 0.0
+	GameState._sisa_bara = 0.0
+	GameState.set_generator(true)
+
+	var oil_awal := GameState.minyak
+	var daya_dihasilkan := 0.0
+	for i in range(2000):
+		var sebelum := GameState.listrik
+		GameState._tick_generator(0.1)
+		daya_dihasilkan += maxf(0.0, GameState.listrik - sebelum)
+		# Beban pabrik bergantian: berkala ada antrean, lalu kosong.
+		if i % 40 == 0 and GameState.logam > 0:
+			GameState.antre_peluru("9mm")
+		GameState._tick_pabrik(0.1)
+
+	var oil_terbakar := float(oil_awal - GameState.minyak)
+	_cek_dekat("1 oil menghasilkan tepat 10 power",
+		oil_terbakar * GameState.LISTRIK_PER_BARA, daya_dihasilkan, 1.0)
+	_cek("tidak ada minyak terbuang (efisiensi 100%)",
+		absf(oil_terbakar * GameState.LISTRIK_PER_BARA - daya_dihasilkan) < 0.5,
+		"(oil %.2f -> %.1f power, tercatat %.1f)" % [oil_terbakar, oil_terbakar * 10.0, daya_dihasilkan])
+
+	# Konservasi daya: yang dihasilkan = yang tersimpan + yang dipakai pabrik.
+	_cek_dekat("daya terkonservasi (tersimpan + terpakai = dihasilkan)",
+		GameState.listrik + float(GameState.statistik["daya_terpakai"]),
+		daya_dihasilkan, 1.0)
 
 	# Produksi jalan memakai listrik
+	GameState.antrean_pabrik.clear()
+	GameState.listrik = 20.0
+	GameState.logam = 5
+	GameState.antre_peluru("9mm")
 	var listrik_awal := GameState.listrik
+	var peluru_awal := GameState.jumlah_peluru("9mm")
 	for i in range(30):
 		GameState._tick_pabrik(0.1)
 	_cek("pabrik selesai memakai listrik", GameState.listrik < listrik_awal)
-	_cek("peluru bertambah dari pabrik", GameState.jumlah_peluru("9mm") == 11,
-		"(dapat %d, harap 6+5)" % GameState.jumlah_peluru("9mm"))
+	_cek("peluru bertambah dari pabrik", GameState.jumlah_peluru("9mm") == peluru_awal + 5,
+		"(dapat %d, harap %d)" % [GameState.jumlah_peluru("9mm"), peluru_awal + 5])
 
 	# Save / load round-trip
 	GameState.minyak = 7
 	GameState.uang = 123
+	GameState.listrik = 12.5
+	GameState._sisa_bara = 0.42
+	var peluru_sebelum_save := GameState.jumlah_peluru("9mm")
 	var dict := GameState.ke_dict()
 	GameState.reset_penuh()
 	GameState.dari_dict(dict)
 	_cek("round-trip save: minyak", GameState.minyak == 7)
 	_cek("round-trip save: uang", GameState.uang == 123)
-	_cek("round-trip save: peluru", GameState.jumlah_peluru("9mm") == 11)
+	_cek("round-trip save: peluru", GameState.jumlah_peluru("9mm") == peluru_sebelum_save)
+	_cek_dekat("round-trip save: sisa_bara", GameState._sisa_bara, 0.42)
+	_cek_dekat("round-trip save: listrik", GameState.listrik, 12.5)
 
 
 func _uji_combat() -> void:

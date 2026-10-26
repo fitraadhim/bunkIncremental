@@ -12,6 +12,9 @@ const TUNGGU_DETIK := 2.5
 var _buka_terminal: bool = false
 var _tab: String = "market"
 var _nama: String = "layar"
+## Skrip penyiapan state, misal "generator" untuk menyalakan generator
+## dengan minyak dan antrean pabrik supaya tab POWER tidak tampak kosong.
+var _siapkan: String = ""
 
 
 func _ready() -> void:
@@ -21,6 +24,8 @@ func _ready() -> void:
 	add_child(utama)
 
 	await get_tree().create_timer(0.2).timeout
+	_siapkan_state()
+
 	if _buka_terminal:
 		var terminal = utama.get_node("UI/Terminal")
 		terminal.buka()
@@ -40,6 +45,26 @@ func _ready() -> void:
 	get_tree().quit()
 
 
+func _siapkan_state() -> void:
+	match _siapkan:
+		"generator":
+			GameState.minyak = 24
+			GameState.logam = 18
+			GameState.uang = 240
+			GameState.listrik = 0.0
+			GameState.antre_peluru("9mm")
+			GameState.antre_peluru("9mm")
+			GameState.set_generator(true)
+			for i in range(20):
+				GameState._tick_generator(0.1)
+				GameState._tick_pabrik(0.1)
+		"idle":
+			GameState.minyak = 24
+			GameState.listrik = GameState.LISTRIK_MAKS
+			GameState.set_generator(true)
+			GameState._tick_generator(0.1)
+
+
 func _baca_argumen() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg == "--terminal":
@@ -48,3 +73,5 @@ func _baca_argumen() -> void:
 			_tab = arg.split("=")[1]
 		elif arg.begins_with("--nama="):
 			_nama = arg.split("=")[1]
+		elif arg.begins_with("--siapkan="):
+			_siapkan = arg.split("=")[1]

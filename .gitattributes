@@ -1,0 +1,14 @@
+# Normalisasi line ending supaya Git tidak menandai file sebagai berubah
+# hanya karena Godot menulis ulang dengan CRLF di Windows.
+* text=auto eol=lf
+
+# File biner — jangan pernah diubah line ending-nya.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ogg binary
+*.wav binary
+*.ttf binary
+*.exe binary
+*.pck binary

@@ -69,7 +69,7 @@ bunkIncremental/
 ├── art/placeholder/       # sprite sementara (generated)
 ├── tools/
 │   ├── buat_placeholder.py    # generator sprite
-│   ├── uji.tscn/.gd           # 53 tes otomatis
+│   ├── uji.tscn/.gd           # 64 tes otomatis
 │   ├── simulasi.tscn/.gd      # simulator balance
 │   └── tangkap.tscn/.gd       # screenshot otomatis
 └── CHANGELOG.md
@@ -88,7 +88,7 @@ bunkIncremental/
 
 ## Alat Developer
 
-### Tes otomatis (53 tes)
+### Tes otomatis (64 tes)
 
 ```powershell
 & "C:\ListPc\download\Godot_v4.6.3-stable_win64.exe\Godot_v4.6.3-stable_win64_console.exe" --headless --path . tools/uji.tscn
@@ -115,7 +115,11 @@ per menit. Ini cara utama men-tuning angka tanpa main manual berjam-jam.
 ```powershell
 & "...console.exe" --path . tools/tangkap.tscn -- --nama=layar
 & "...console.exe" --path . tools/tangkap.tscn -- --terminal --tab=factory --nama=pabrik
+& "...console.exe" --path . tools/tangkap.tscn -- --terminal --tab=generator --siapkan=idle --nama=power_idle
 ```
+
+`--siapkan=generator|idle` memaksa state tertentu sebelum capture, berguna untuk
+mendokumentasikan tampilan yang butuh kondisi khusus.
 
 Hasil tersimpan di `%APPDATA%\Godot\app_userdata\Bunker Incremental\`.
 
@@ -127,7 +131,7 @@ python tools/buat_placeholder.py
 
 ---
 
-## Angka Balance (v0.3.0)
+## Angka Balance (v0.3.1)
 
 | Parameter | Nilai |
 |---|---|
@@ -138,11 +142,11 @@ python tools/buat_placeholder.py
 | Parang | 15 dmg, 0.6s, jangkauan 26px |
 | Drop zombie | Oil 2–4, Scrap 1–2, +1 per 3/4 wave |
 | Harga minyak | $2.00 dasar, fluktuasi ±15%, refresh 60s |
-| Generator | 1 oil / 2s → 10 power (cap 30) |
+| Generator | 5 power/detik, bakar proporsional: **1 oil = 10 power** |
 | Pabrik 9mm | 1 scrap + 2s → 5 peluru, 1 power/s |
 | HP bunker | 100, repair $10+3×wave |
 | Bounty wave | $10 + 5×wave |
-| Save | autosave 10s + saat close |
+| Save | autosave 10s + saat close, format v2 |
 
 ---
 

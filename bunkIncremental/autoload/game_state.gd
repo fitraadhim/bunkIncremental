@@ -23,7 +23,12 @@ const HP_BUNKER_MAKS := 100.0
 const LISTRIK_MAKS := 30.0
 const JEDA_REFRESH_HARGA := 60.0
 const KAPASITAS_ANTREAN := 5
-const JEDA_BARA := 2.0
+
+## Generator mengisi baterai sebesar 5 power/detik (10 power per 2 detik),
+## tapi bahan bakar dibakar SEBANDING dengan daya yang benar-benar masuk.
+## Dengan begitu 1 crude oil selalu menghasilkan tepat 10 power — tidak ada
+## yang terbuang saat baterai hampir penuh.
+const LAJU_DAYA := 5.0
 const LISTRIK_PER_BARA := 10.0
 
 # --- Resource ---
@@ -49,7 +54,13 @@ var wave_aktif: bool = false
 var listrik: float = 0.0
 var generator_aktif: bool = false
 var antrean_pabrik: Array = []
-var _akumulator_bara: float = 0.0
+## Minyak pecahan yang sudah masuk ke mesin tapi belum mencapai 1 unit.
+var _sisa_bara: float = 0.0
+## "stopped" | "idle" | "running"
+var _status_generator: String = "stopped"
+## Laju daya yang masuk ke baterai pada tick terakhir (power/detik).
+## Dipakai UI untuk menampilkan konsumsi minyak yang sebenarnya.
+var _laju_daya_terakhir: float = 0.0
 
 # --- Pasar ---
 var harga_minyak: float = Ekonomi.HARGA_DASAR
@@ -60,6 +71,8 @@ var tren_harga: String = "flat"
 var statistik: Dictionary = {
 	"zombie_dibunuh": 0,
 	"minyak_terkumpul": 0,
+	"minyak_terbakar": 0,
+	"daya_terpakai": 0.0,
 	"uang_didapat": 0,
 	"peluru_dibuat": 0,
 }
@@ -92,24 +105,68 @@ func _tick_pasar(delta: float) -> void:
 func _tick_generator(delta: float) -> void:
 	if not generator_aktif:
 		return
-	if listrik >= LISTRIK_MAKS:
-		_akumulator_bara = 0.0
+
+	# Baterai penuh: generator tetap menyala tapi tidak membakar apa pun.
+	var ruang := LISTRIK_MAKS - listrik
+	if ruang <= 0.001:
+		_laju_daya_terakhir = 0.0
+		_set_status_generator("idle")
 		return
-	if minyak <= 0:
+
+	# Stok dihitung termasuk pecahan minyak yang masih di dalam mesin.
+	var stok := float(minyak) + _sisa_bara
+	if stok <= 0.0001:
+		_sisa_bara = 0.0
+		_laju_daya_terakhir = 0.0
 		generator_aktif = false
-		generator_berubah.emit()
+		_set_status_generator("stopped")
 		pesan.emit("Generator stopped — out of crude oil", Color(1.0, 0.45, 0.3))
 		return
 
-	_akumulator_bara += delta
-	if _akumulator_bara < JEDA_BARA:
-		return
+	# Daya dibatasi oleh ruang baterai; bahan bakar dihitung DARI daya itu,
+	# bukan dari waktu. Inilah yang membuat 1 oil selalu = 10 power.
+	var daya := minf(LAJU_DAYA * delta, ruang)
+	var bakar := minf(daya / LISTRIK_PER_BARA, stok)
+	daya = bakar * LISTRIK_PER_BARA
 
-	_akumulator_bara -= JEDA_BARA
-	minyak -= 1
-	listrik = minf(listrik + LISTRIK_PER_BARA, LISTRIK_MAKS)
-	resource_berubah.emit()
+	# Kumpulkan pecahan minyak, potong stok hanya saat sudah genap 1 unit.
+	_sisa_bara += bakar
+	while _sisa_bara >= 1.0:
+		_sisa_bara -= 1.0
+		minyak -= 1
+		statistik["minyak_terbakar"] += 1
+		resource_berubah.emit()
+
+	_laju_daya_terakhir = daya / maxf(delta, 0.0001)
+	listrik = minf(listrik + daya, LISTRIK_MAKS)
 	listrik_berubah.emit(listrik, LISTRIK_MAKS)
+	_set_status_generator("running")
+
+
+## Status generator untuk UI: "stopped", "idle" (baterai penuh), "running".
+func status_generator() -> String:
+	if not generator_aktif:
+		return "stopped"
+	if listrik >= LISTRIK_MAKS - 0.001:
+		return "idle"
+	return "running"
+
+
+## Perkiraan konsumsi minyak per detik saat ini, berdasarkan laju pengisian
+## daya yang benar-benar terjadi pada tick terakhir.
+func konsumsi_minyak_per_detik() -> float:
+	if not generator_aktif:
+		return 0.0
+	if status_generator() == "idle":
+		return 0.0
+	return _laju_daya_terakhir / LISTRIK_PER_BARA
+
+
+func _set_status_generator(baru: String) -> void:
+	if _status_generator == baru:
+		return
+	_status_generator = baru
+	generator_berubah.emit()
 
 
 func _tick_pabrik(delta: float) -> void:
@@ -120,6 +177,7 @@ func _tick_pabrik(delta: float) -> void:
 
 	if float(hasil["daya_terpakai"]) > 0.0:
 		listrik = maxf(0.0, listrik - float(hasil["daya_terpakai"]))
+		statistik["daya_terpakai"] += float(hasil["daya_terpakai"])
 		listrik_berubah.emit(listrik, LISTRIK_MAKS)
 
 	for kaliber in hasil["selesai"]:
@@ -307,12 +365,14 @@ func antre_peluru(kaliber: String) -> bool:
 
 
 func set_generator(aktif: bool) -> void:
-	if aktif and minyak <= 0:
+	if aktif and minyak <= 0 and _sisa_bara <= 0.0001:
 		pesan.emit("No crude oil to burn", Color(1.0, 0.6, 0.3))
 		return
 	generator_aktif = aktif
-	_akumulator_bara = 0.0
-	generator_berubah.emit()
+	if not aktif:
+		_sisa_bara = 0.0
+		_laju_daya_terakhir = 0.0
+	_set_status_generator(status_generator())
 
 
 # ---------------------------------------------------------------------------
@@ -362,10 +422,20 @@ func reset_penuh() -> void:
 	wave_aktif = false
 	listrik = 0.0
 	generator_aktif = false
+	_sisa_bara = 0.0
+	_status_generator = "stopped"
+	_laju_daya_terakhir = 0.0
 	antrean_pabrik.clear()
 	harga_minyak = Ekonomi.HARGA_DASAR
 	sisa_refresh_harga = JEDA_REFRESH_HARGA
-	statistik = {"zombie_dibunuh": 0, "minyak_terkumpul": 0, "uang_didapat": 0, "peluru_dibuat": 0}
+	statistik = {
+		"zombie_dibunuh": 0,
+		"minyak_terkumpul": 0,
+		"minyak_terbakar": 0,
+		"daya_terpakai": 0.0,
+		"uang_didapat": 0,
+		"peluru_dibuat": 0,
+	}
 	_kirim_semua_sinyal()
 
 
@@ -396,6 +466,7 @@ func ke_dict() -> Dictionary:
 		"wave": wave,
 		"listrik": listrik,
 		"generator_aktif": generator_aktif,
+		"sisa_bara": _sisa_bara,
 		"antrean_pabrik": antrean_pabrik.duplicate(true),
 		"harga_minyak": harga_minyak,
 		"sisa_refresh_harga": sisa_refresh_harga,
@@ -418,6 +489,12 @@ func dari_dict(data: Dictionary) -> void:
 	wave = maxi(1, int(data.get("wave", 1)))
 	listrik = float(data.get("listrik", 0.0))
 	generator_aktif = bool(data.get("generator_aktif", false))
+	# Save v1 tidak punya field ini; default 0.0 supaya tetap kompatibel.
+	_sisa_bara = float(data.get("sisa_bara", 0.0))
+	_laju_daya_terakhir = 0.0
+	_status_generator = "stopped"
+	if generator_aktif:
+		_status_generator = "idle" if listrik >= LISTRIK_MAKS - 0.001 else "running"
 
 	antrean_pabrik.clear()
 	for item in data.get("antrean_pabrik", []):
@@ -429,6 +506,10 @@ func dari_dict(data: Dictionary) -> void:
 
 	var stat: Dictionary = data.get("statistik", {})
 	for kunci in statistik.keys():
-		statistik[kunci] = int(stat.get(kunci, 0))
+		# daya_terpakai berupa pecahan, sisanya bilangan bulat.
+		if kunci == "daya_terpakai":
+			statistik[kunci] = float(stat.get(kunci, 0.0))
+		else:
+			statistik[kunci] = int(stat.get(kunci, 0))
 
 	_kirim_semua_sinyal()

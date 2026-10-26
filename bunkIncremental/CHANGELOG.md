@@ -14,6 +14,99 @@ Tahap rilis yang dipakai:
 
 ---
 
+## [0.3.1-demo] — 2026-10-26
+
+**Judul: "Fuel Efficiency"**
+
+Perbaikan bug yang dilaporkan pemain: generator terus menyedot crude oil walau
+baterai hampir penuh, sehingga minyak terbuang sia-sia.
+
+### Diagnosis
+
+Generator lama membakar **1 oil utuh** lalu menambahkan 10 power sekaligus,
+tanpa melihat berapa yang benar-benar muat di baterai:
+
+```gdscript
+minyak -= 1                                                  # 1 oil utuh
+listrik = minf(listrik + LISTRIK_PER_BARA, LISTRIK_MAKS)      # +10, dipotong cap
+```
+
+Dengan baterai 30 dan pabrik yang makan 1 power/detik, siklusnya:
+
+| Waktu | Power | Kejadian |
+|---|---|---|
+| 0s | 30 | penuh, generator diam |
+| 2s | 28 | pabrik makan 2 |
+| 2s | **30** | generator bakar 1 oil (+10, hanya muat 2 → **8 power hilang**) |
+
+Hasilnya pabrik butuh 1 power/detik tapi generator membakar 0.5 oil/detik.
+Satu oil seharusnya cukup untuk 10 detik, bukan 2. **Efisiensi hanya 20% —
+80% minyak menguap.** Bug kedua: `_akumulator_bara` di-reset ke 0 saat baterai
+penuh, membuang progres pembakaran yang sudah setengah jalan.
+
+### Diperbaiki
+
+- **Pembakaran minyak sekarang proporsional.** Bahan bakar dihitung *dari daya
+  yang benar-benar tersimpan*, bukan dari waktu:
+
+  ```gdscript
+  var daya := minf(LAJU_DAYA * delta, ruang)      # dibatasi ruang baterai
+  var bakar := minf(daya / LISTRIK_PER_BARA, stok) # minyak sebanding
+  ```
+
+  Hasilnya **1 crude oil selalu menghasilkan tepat 10 power**. Konsumsi turun
+  dari 0.5 → 0.1 oil/detik pada beban pabrik penuh (**5× lebih hemat**).
+
+- **Pecahan minyak disimpan** di `_sisa_bara` (float), dan `minyak` hanya
+  dipotong saat sudah genap 1 unit. Tidak ada lagi minyak "setengah terbakar"
+  yang hilang saat generator dimatikan.
+
+- **Baterai penuh = nol konsumsi.** Generator tetap menyala tapi berhenti
+  membakar sepenuhnya, bukan membuang progres akumulator.
+
+- **Status generator jadi tiga:** `STOPPED`, `IDLE — BATTERY FULL`, `RUNNING`.
+  Sebelumnya hanya dua, sehingga pemain tidak bisa membedakan "sedang membakar"
+  dan "menyala tapi diam".
+
+### Ditambahkan
+
+- **Indikator konsumsi live** di tab POWER (`Consumption: 0.10 oil/s`),
+  dihitung dari laju pengisian daya pada tick terakhir.
+- **Statistik `minyak_terbakar` dan `daya_terpakai`** untuk audit efisiensi.
+- **11 tes regresi baru** di `tools/uji.tscn` (total 53 → 64), termasuk:
+  - `tidak membakar 1 oil utuh saat hampir penuh`
+  - `generator tidak membakar saat baterai penuh`
+  - `1 oil menghasilkan tepat 10 power`
+  - `tidak ada minyak terbuang (efisiensi 100%)`
+  - `daya terkonservasi (tersimpan + terpakai = dihasilkan)`
+- **Argumen `--siapkan=` pada `tools/tangkap.gd`** untuk memaksa state tertentu
+  sebelum screenshot (`generator`, `idle`).
+- **`.gitignore`** di root repo — mencegah folder `.godot/` (cache impor,
+  bisa ratusan MB) ikut ter-commit.
+
+### Diubah
+
+- **`VERSI_SAVE` 1 → 2** — menambah field `sisa_bara`. Save v1 tetap bisa
+  dimuat (field baru default `0.0`), dan proses migrasi dicatat di log.
+- **Teks tab POWER** — dari *"Burns 1 crude oil every 2s"* menjadi
+  *"Burns fuel only as needed — 1 crude oil per 10 power."*
+
+### Hasil Simulasi (20 menit, strategi ekonomi)
+
+| Metrik | v0.3.0 | v0.3.1 |
+|---|---|---|
+| Minyak terkumpul | 1.452 | 1.477 |
+| Minyak terbakar | — (tidak tercatat) | **122** |
+| Daya terpakai | — | 1.192,4 |
+| **Efisiensi** | ~20% | **9,77 power per oil (ideal 10)** |
+| Wave tercapai | 18 | 18 |
+
+Efisiensi 9,77 dari ideal 10 karena sebagian daya masih tersimpan di baterai
+saat simulasi berakhir. Kurva progres tidak berubah signifikan, jadi konsumsi
+daya pabrik tetap **1 power/detik** — tidak perlu kompensasi.
+
+---
+
 ## [0.3.0-demo] — 2026-10-26
 
 **Judul: "Balance & Recovery"**
