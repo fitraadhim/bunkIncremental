@@ -14,6 +14,75 @@ Tahap rilis yang dipakai:
 
 ---
 
+## [0.5.0-demo] — 2026-10-26
+
+**Judul: "Day & Night"**
+
+Overhaul besar pada alur permainan: kini ada siklus siang/malam yang nyata,
+level misi berbasis wave, NPC di dalam bunker, dan pagar yang hanya muncul
+setelah skill dibeli.
+
+### Ditambahkan
+
+**Fase siang / malam**
+
+- Game mulai dalam kondisi **siang** — langit biru, matahari terbit, tidak ada zombie.
+- Langit malam tetap gelap seperti sebelumnya; langit siang biru gradien dengan matahari + sinar.
+
+**Detektor zombie (device di x=340)**
+
+- Sprite alat radar di depan bunker. Siang: berkedip hijau, petunjuk `[E] SCAN`.
+  Malam: merah, tulisan `ACTIVE`.
+- Tekan `E` di dekat alat → buka **Level Selector** (panel militer bergaya).
+
+**Sistem level dan wave bertingkat**
+
+- Level 1 — *First Night*: 5 wave, pengali HP zombie 0.8, pengali kecepatan 0.85.
+- `wave_dalam_level` dan `wave_total_level` ditampilkan di HUD (`WAVE 1 / 5`).
+- Setelah wave terakhir selesai, game kembali ke fase siang otomatis.
+- `GameState` kini menyimpan `fase`, `level_aktif`, `wave_dalam_level`, `wave_total_level`.
+- Signal baru: `fase_berubah(fase)`, `level_selesai(level)`.
+
+**3 NPC di dalam bunker (lantai 1)**
+
+- **Trader** (x=200) — membuka tab Market. Gambar pixel: jaket hijau army, meja counter.
+- **Tech** (x=340) — membuka tab Generator/Power. Gambar: helm kuning, kacamata biru, kunci pas.
+- **Armorer** (x=450) — membuka tab Factory. Gambar: jaket kulit coklat, selongsong peluru.
+- Semua NPC punya animasi idle bob (±1.4px vertikal, siklus 2 detik).
+- `interior.npc_di_dekat(posisi)` → kembalikan `"market"` / `"generator"` / `"factory"` / `""`.
+- Tekan `E` dekat NPC → buka tab terminal yang sesuai.
+
+**Pagar jadi skill-gated**
+
+- Sebelum skill `barbed_wire` dibeli: pagar tampil sebagai **reruntuhan** (tiang patah,
+  label "FENCE RUINED"), collision nonaktif, zombie menembus langsung ke bunker.
+- Setelah skill dibeli: pagar utuh dengan kawat berduri, collision aktif seperti sebelumnya.
+- `GameState.pagar_hidup()` kini juga cek `SkillTree.sudah_dimiliki("barbed_wire")`.
+- Posisi pagar dipindah ke **x=250** (lebih dekat ke bunker dari x=470 di v0.4.0).
+
+**Tab membuka skill tree (bukan terminal)**
+
+- `Tab` dan `K` keduanya membuka **SkillPanel**. Terminal tidak lagi dibuka lewat keyboard global.
+- HUD hint diperbarui: `K skills  ·  E interact`.
+
+**MountDepan disembunyikan**
+
+- Node `MountDepan` (`visible = false`) secara default; hanya muncul di mode pasang turret (fase mendatang).
+
+### Diubah
+
+- `main.gd` ditulis ulang: logika level, fase siang/malam, detektor, NPC dispatch semua terpusat di sini.
+- `zombie.gd`: tambah `pengali_hp` dan `pengali_kecepatan` yang diterapkan dari data level.
+- `world.gd`: fungsi `atur_siang(bool)` + signal `fase_berubah` → gambar langit berbeda.
+- `hud.gd`: label wave menampilkan `WAVE X / Y` saat level aktif, `DAYTIME` saat siang.
+- `terminal.gd`: tambah `buka_tab(tab: String)` — buka panel pada tab tertentu langsung.
+
+### Test
+
+- 173 test, semua lolos (naik dari 174, satu test dihapus karena asumsi lama tentang `pagar_hidup()` tanpa skill).
+
+---
+
 ## [0.4.0-demo] — 2026-10-26
 
 **Judul: "Hold the Line"**

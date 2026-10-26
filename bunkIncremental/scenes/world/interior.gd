@@ -44,11 +44,19 @@ const WARNA_BAIK := Color(0.55, 0.88, 0.55)
 var _aktif: bool = false
 var _regen_akumulasi: float = 0.0
 var _font: Font
+## Referensi NPC, diisi dari _ready.
+var _npc_market: Node2D = null
+var _npc_generator: Node2D = null
+var _npc_ammo: Node2D = null
 
 
 func _ready() -> void:
 	visible = false
 	_font = ThemeDB.fallback_font
+	await get_tree().process_frame
+	_npc_market = get_node_or_null("NpcMarket")
+	_npc_generator = get_node_or_null("NpcGenerator")
+	_npc_ammo = get_node_or_null("NpcAmmo")
 	GameState.hp_pemain_berubah.connect(_on_hp_pemain)
 	SkillTree.skill_berubah.connect(_on_skill_berubah)
 
@@ -110,6 +118,18 @@ func di_zona_kasur(x: float) -> bool:
 
 func di_zona_pintu(x: float) -> bool:
 	return x >= PINTU_X_MIN and x <= PINTU_X_MAX
+
+
+## Mengembalikan jenis NPC yang bisa diinteraksi dari posisi pemain,
+## atau "" kalau tidak ada yang dalam jangkauan.
+func npc_di_dekat(posisi: Vector2) -> String:
+	if _npc_market != null and _npc_market.dalam_jangkauan(posisi):
+		return "market"
+	if _npc_generator != null and _npc_generator.dalam_jangkauan(posisi):
+		return "generator"
+	if _npc_ammo != null and _npc_ammo.dalam_jangkauan(posisi):
+		return "factory"
+	return ""
 
 
 func _tick_kasur(delta: float) -> void:

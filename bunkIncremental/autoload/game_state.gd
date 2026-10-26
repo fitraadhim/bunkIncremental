@@ -18,6 +18,8 @@ signal wave_berubah(nomor: int, sisa: int)
 signal pabrik_berubah
 signal generator_berubah
 signal pesan(teks: String, warna: Color)
+signal fase_berubah(fase: String)
+signal level_selesai(level: int)
 
 ## --- Nilai DASAR -----------------------------------------------------------
 ## Ini BUKAN angka yang dipakai game. Skill tree bisa menambah atau mengurangi
@@ -58,6 +60,15 @@ var wave: int = 1
 var zombie_hidup: int = 0
 var zombie_total_wave: int = 0
 var wave_aktif: bool = false
+
+## Status fase: "siang" = belum mulai level, "malam" = level aktif (zombie ada).
+var fase: String = "siang"
+## Level yang sedang dimainkan (1 = tutorial).
+var level_aktif: int = 0
+## Wave ke berapa di dalam level ini (1-based).
+var wave_dalam_level: int = 0
+## Berapa wave total level ini.
+var wave_total_level: int = 0
 
 # --- Listrik & pabrik ---
 var listrik: float = 0.0
@@ -441,7 +452,7 @@ func terima_damage_pagar(jumlah: float) -> void:
 
 
 func pagar_hidup() -> bool:
-	return hp_pagar > 0.0
+	return SkillTree.sudah_dimiliki("barbed_wire") and hp_pagar > 0.0
 
 
 func perbaiki_pagar(jumlah: float) -> void:

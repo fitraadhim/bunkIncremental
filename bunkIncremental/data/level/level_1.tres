@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Level" format=3]
+
+[ext_resource type="Script" path="res://data/level.gd" id="1_level"]
+
+[resource]
+script = ExtResource("1_level")
+id = 1
+nama = "Level 1 — First Night"
+deskripsi = "A small horde scouts the perimeter. Five waves. Learn the basics."
+jumlah_wave = 5
+pengali_hp = 0.8
+pengali_kecepatan = 0.85
+pesan_mulai = "First contact. Five waves. Hold the line."
+pesan_selesai = "Night clear. The bunker stands."

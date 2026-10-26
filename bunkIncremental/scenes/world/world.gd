@@ -10,6 +10,9 @@ const LEBAR_LAYAR := 640.0
 const Y_TANAH := 260.0
 const TINGGI_TANAH := 16.0
 
+## True saat fase siang (tidak ada zombie).
+var _siang: bool = false
+
 ## Vector4(x, y, lebar, tinggi) — semua berakhir di Y_TANAH.
 const GEDUNG: Array = [
 	Vector4(18, 196, 46, 64),
@@ -28,6 +31,18 @@ const GEDUNG: Array = [
 
 
 func _ready() -> void:
+	GameState.fase_berubah.connect(_on_fase_berubah)
+	_siang = GameState.fase == "siang"
+	queue_redraw()
+
+
+func _on_fase_berubah(fase: String) -> void:
+	_siang = fase == "siang"
+	queue_redraw()
+
+
+func atur_siang(aktif: bool) -> void:
+	_siang = aktif
 	queue_redraw()
 
 
@@ -39,19 +54,42 @@ func _draw() -> void:
 
 
 func _gambar_langit() -> void:
-	var atas := Color(0.05, 0.06, 0.09)
-	var bawah := Color(0.17, 0.15, 0.17)
-	var langkah := 16
-	var tinggi_band := Y_TANAH / float(langkah)
-	for i in range(langkah):
-		var t := float(i) / float(langkah - 1)
-		draw_rect(Rect2(0.0, i * tinggi_band, LEBAR_LAYAR, tinggi_band + 1.0), atas.lerp(bawah, t))
+	if _siang:
+		# Langit siang: gradien biru terang ke biru muda.
+		var atas := Color(0.36, 0.56, 0.88)
+		var bawah := Color(0.62, 0.78, 0.96)
+		var langkah := 16
+		var tinggi_band := Y_TANAH / float(langkah)
+		for i in range(langkah):
+			var t := float(i) / float(langkah - 1)
+			draw_rect(Rect2(0.0, i * tinggi_band, LEBAR_LAYAR, tinggi_band + 1.0), atas.lerp(bawah, t))
+	else:
+		# Langit malam: gradien gelap biru-hitam.
+		var atas := Color(0.05, 0.06, 0.09)
+		var bawah := Color(0.17, 0.15, 0.17)
+		var langkah := 16
+		var tinggi_band := Y_TANAH / float(langkah)
+		for i in range(langkah):
+			var t := float(i) / float(langkah - 1)
+			draw_rect(Rect2(0.0, i * tinggi_band, LEBAR_LAYAR, tinggi_band + 1.0), atas.lerp(bawah, t))
 
 
 func _gambar_bulan() -> void:
-	draw_circle(Vector2(430.0, 54.0), 30.0, Color(0.85, 0.86, 0.78, 0.06))
-	draw_circle(Vector2(430.0, 54.0), 19.0, Color(0.88, 0.88, 0.80, 0.16))
-	draw_circle(Vector2(430.0, 54.0), 13.0, Color(0.93, 0.92, 0.84, 0.42))
+	if _siang:
+		# Siang: gambar matahari.
+		draw_circle(Vector2(500.0, 48.0), 22.0, Color(1.0, 0.95, 0.70, 0.9))
+		draw_circle(Vector2(500.0, 48.0), 18.0, Color(1.0, 0.98, 0.82, 1.0))
+		# Sinar matahari pendek.
+		for i in range(8):
+			var sudut := deg_to_rad(i * 45.0)
+			var awal := Vector2(500.0, 48.0) + Vector2(cos(sudut), sin(sudut)) * 26.0
+			var akhir := Vector2(500.0, 48.0) + Vector2(cos(sudut), sin(sudut)) * 34.0
+			draw_line(awal, akhir, Color(1.0, 0.92, 0.60, 0.7), 2.0)
+	else:
+		# Malam: bulan.
+		draw_circle(Vector2(430.0, 54.0), 30.0, Color(0.85, 0.86, 0.78, 0.06))
+		draw_circle(Vector2(430.0, 54.0), 19.0, Color(0.88, 0.88, 0.80, 0.16))
+		draw_circle(Vector2(430.0, 54.0), 13.0, Color(0.93, 0.92, 0.84, 0.42))
 
 
 func _gambar_reruntuhan() -> void:

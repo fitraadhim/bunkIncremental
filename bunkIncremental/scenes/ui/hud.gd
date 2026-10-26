@@ -37,6 +37,7 @@ func _ready() -> void:
 	GameState.listrik_berubah.connect(_on_listrik)
 	GameState.wave_berubah.connect(_on_wave)
 	GameState.peluru_berubah.connect(_on_peluru)
+	GameState.fase_berubah.connect(_on_fase_berubah)
 	SkillTree.skill_berubah.connect(_on_skill_berubah)
 
 	_perbarui_resource()
@@ -195,7 +196,7 @@ func _bangun_pesan() -> void:
 
 func _bangun_petunjuk() -> void:
 	_petunjuk = _buat_label(
-		"A/D move  ·  LMB shoot  ·  SPACE machete  ·  Q medkit  ·  TAB terminal  ·  K skills  ·  E bunker",
+		"A/D move  ·  LMB shoot  ·  SPACE machete  ·  Q medkit  ·  K skills  ·  E interact",
 		8,
 		Color(0.45, 0.48, 0.54)
 	)
@@ -336,9 +337,26 @@ func _on_listrik(sekarang: float, maks: float) -> void:
 	_bar["listrik"].value = sekarang
 
 
+func _on_fase_berubah(fase: String) -> void:
+	if fase == "siang":
+		_on_wave(GameState.wave, 0)
+	else:
+		_on_wave(GameState.wave, GameState.zombie_hidup)
+
+
 func _on_wave(nomor: int, sisa: int) -> void:
 	if _label.has("wave"):
-		_label["wave"].text = "NIGHT %d" % nomor
+		if GameState.fase == "siang":
+			_label["wave"].text = "DAYTIME"
+			if _label.has("sisa"):
+				_label["sisa"].text = "No active mission"
+			return
+		if GameState.wave_total_level > 0:
+			_label["wave"].text = "WAVE %d / %d" % [
+				GameState.wave_dalam_level, GameState.wave_total_level
+			]
+		else:
+			_label["wave"].text = "NIGHT %d" % nomor
 	if _label.has("sisa"):
 		_label["sisa"].text = "%d walkers left" % sisa
 

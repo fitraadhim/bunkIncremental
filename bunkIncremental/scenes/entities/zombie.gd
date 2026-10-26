@@ -7,6 +7,9 @@ signal mati(zombie: Node2D)
 const SKALA_HP_PER_WAVE := 1.12
 
 ## Diisi oleh main.gd sebelum add_child().
+## pengali_hp dan pengali_kecepatan dari level data.
+var pengali_hp: float = 1.0
+var pengali_kecepatan: float = 1.0
 var wave_ke: int = 1
 
 var data: Musuh
@@ -23,8 +26,8 @@ func _ready() -> void:
 	add_to_group("zombie")
 	data = Data.ambil_musuh("zombie_biasa")
 
-	var pengali := pow(SKALA_HP_PER_WAVE, maxi(0, wave_ke - 1))
-	hp_maks = data.hp * pengali
+	var pengali_wave := pow(SKALA_HP_PER_WAVE, maxi(0, wave_ke - 1))
+	hp_maks = data.hp * pengali_wave * pengali_hp
 	hp = hp_maks
 	scale = Vector2.ONE * data.skala
 	_timer_serang = randf_range(0.2, 0.7)

@@ -57,6 +57,14 @@ func _process(_delta: float) -> void:
 # ---------------------------------------------------------------------------
 
 func buka() -> void:
+	buka_tab(_tab_aktif)
+
+
+## Buka terminal langsung pada tab tertentu. Dipakai main.gd saat pemain
+## berinteraksi dengan NPC tertentu di dalam bunker.
+func buka_tab(tab: String) -> void:
+	if DAFTAR_TAB.has(tab):
+		_tab_aktif = tab
 	visible = true
 	get_tree().paused = true
 	_bangun_konten()

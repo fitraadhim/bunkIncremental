@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/level_selector.gd" id="1_sel"]
+
+[node name="LevelSelector" type="Control"]
+script = ExtResource("1_sel")
+mouse_filter = 0

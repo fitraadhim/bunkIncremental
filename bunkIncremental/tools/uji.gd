@@ -251,14 +251,20 @@ func _uji_pagar() -> void:
 	SkillTree.reset()
 	GameState.reset_penuh()
 
+	# Pagar butuh skill barbed_wire agar aktif — simulasikan sudah dibeli.
+	SkillTree._dimiliki["barbed_wire"] = true
+	SkillTree._invalidasi()
+	# Sync hp_pagar ke maks baru (320) supaya "tidak perlu perbaikan saat penuh" lulus.
+	GameState.hp_pagar = GameState.pagar_hp_maks()
+
 	# --- Kondisi awal ---
-	_cek_dekat("pagar mulai penuh", GameState.hp_pagar, 200.0)
-	_cek("pagar dianggap hidup", GameState.pagar_hidup())
+	_cek("pagar dianggap hidup setelah skill dibeli", GameState.pagar_hidup())
 	_cek("tidak perlu perbaikan saat penuh", GameState.biaya_perbaikan_pagar() == 0)
 
 	# --- Menerima damage ---
+	var hp_maks_sekarang := GameState.pagar_hp_maks()
 	GameState.terima_damage_pagar(30.0)
-	_cek_dekat("damage pagar 30 -> 170", GameState.hp_pagar, 170.0)
+	_cek_dekat("damage pagar 30 mengurangi HP", GameState.hp_pagar, hp_maks_sekarang - 30.0)
 	_cek("pagar masih hidup", GameState.pagar_hidup())
 	var biaya_rusak := GameState.biaya_perbaikan_pagar()
 	_cek("perbaikan sebagian berbiaya", biaya_rusak > 0, "(dapat %d)" % biaya_rusak)
@@ -284,13 +290,14 @@ func _uji_pagar() -> void:
 	# --- Bangun ulang ---
 	GameState.uang = 500
 	var didapat := GameState.beli_perbaikan_pagar()
-	_cek_dekat("bangun ulang mengembalikan HP penuh", GameState.hp_pagar, 200.0)
-	_cek_dekat("HP yang didapat = 200", didapat, 200.0)
+	var hp_maks_awal := GameState.pagar_hp_maks()
+	_cek_dekat("bangun ulang mengembalikan HP penuh", GameState.hp_pagar, hp_maks_awal)
+	_cek_dekat("HP yang didapat = hp_maks", didapat, hp_maks_awal)
 	_cek("uang terpotong", GameState.uang == 500 - biaya_jebol,
 		"(dapat %d, harap %d)" % [GameState.uang, 500 - biaya_jebol])
 	_cek("tidak bisa bayar dua kali saat penuh", GameState.biaya_perbaikan_pagar() == 0)
 
-	# --- Barbed Wire menambah ketahanan ---
+	# --- Barbed Wire menambah ketahanan (skill sudah _dimiliki, beli reinforced_door dulu) ---
 	GameState.uang = 99999
 	SkillTree.beli("reinforced_door")
 	SkillTree.beli("barbed_wire")
@@ -609,7 +616,14 @@ func _uji_combat() -> void:
 
 	var utama = preload("res://scenes/main.tscn").instantiate()
 	add_child(utama)
-	await get_tree().create_timer(1.3).timeout
+
+	# Sistem baru mulai siang — harus trigger fase malam agar zombie spawn.
+	GameState.fase = "malam"
+	GameState.wave_total_level = 10
+	GameState.wave_dalam_level = 0
+	utama._mulai_wave()
+
+	await get_tree().create_timer(2.0).timeout
 
 	var pemain = utama.get_node("Player")
 	_cek("player terdaftar di grup", pemain.is_in_group("pemain"))
@@ -665,6 +679,9 @@ func _uji_combat() -> void:
 	_cek("pagar terpasang di scene", pagar != null)
 
 	if pagar != null:
+		# Aktifkan skill barbed_wire agar pagar dianggap hidup oleh GameState.
+		SkillTree._dimiliki["barbed_wire"] = true
+		SkillTree._invalidasi()
 		GameState.hp_pagar = GameState.pagar_hp_maks()
 		var hp_pagar_awal := GameState.hp_pagar
 

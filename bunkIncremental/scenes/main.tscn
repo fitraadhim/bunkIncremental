@@ -1,6 +1,6 @@
-[gd_scene format=3 uid="uid://bkead1gm5k6qo"]
+[gd_scene load_steps=12 format=3]
 
-[ext_resource type="Script" uid="uid://h4cpjnlhaqog" path="res://scenes/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/world/world.tscn" id="2_world"]
 [ext_resource type="PackedScene" path="res://scenes/entities/player.tscn" id="3_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="4_hud"]
@@ -9,41 +9,45 @@
 [ext_resource type="PackedScene" path="res://scenes/world/pagar.tscn" id="7_pagar"]
 [ext_resource type="PackedScene" path="res://scenes/world/interior.tscn" id="8_interior"]
 [ext_resource type="PackedScene" path="res://scenes/world/mount_point.tscn" id="9_mount"]
+[ext_resource type="PackedScene" path="res://scenes/world/detektor.tscn" id="10_det"]
+[ext_resource type="PackedScene" path="res://scenes/ui/level_selector.tscn" id="11_sel"]
 
-[node name="Main" type="Node2D" unique_id=1896523907]
+[node name="Main" type="Node2D"]
 script = ExtResource("1_main")
 
-[node name="World" parent="." unique_id=237769647 instance=ExtResource("2_world")]
+[node name="World" parent="." instance=ExtResource("2_world")]
 
-[node name="Pagar" parent="." unique_id=427567157 instance=ExtResource("7_pagar")]
+[node name="Pagar" parent="." instance=ExtResource("7_pagar")]
+position = Vector2(250, 260)
 z_index = 1
-position = Vector2(470, 260)
 
-[node name="MountDepan" parent="." unique_id=2079194506 instance=ExtResource("9_mount")]
-z_index = 1
+[node name="MountDepan" parent="." instance=ExtResource("9_mount")]
 position = Vector2(136, 260)
+z_index = 1
+visible = false
+jenis = "depan"
+label = "MOUNT — EMPTY"
 
-[node name="Interior" parent="." unique_id=311372957 instance=ExtResource("8_interior")]
+[node name="Detektor" parent="." instance=ExtResource("10_det")]
+position = Vector2(340, 260)
+z_index = 1
+
+[node name="Interior" parent="." instance=ExtResource("8_interior")]
 visible = false
 
-[node name="Entities" type="Node2D" parent="." unique_id=154847548 groups=["wadah_entitas"]]
+[node name="Entities" type="Node2D" parent="." groups=["wadah_entitas"]]
 z_index = 2
 
-[node name="Player" parent="." unique_id=1227872001 instance=ExtResource("3_player")]
-z_index = 3
+[node name="Player" parent="." instance=ExtResource("3_player")]
 position = Vector2(200, 260)
+z_index = 3
 
-[node name="UI" type="CanvasLayer" parent="." unique_id=1729908539]
+[node name="UI" type="CanvasLayer" parent="."]
 
-[node name="HUD" parent="UI" unique_id=530794468 instance=ExtResource("4_hud")]
-layout_mode = 3
+[node name="HUD" parent="UI" instance=ExtResource("4_hud")]
 
-[node name="Terminal" parent="UI" unique_id=1747770549 instance=ExtResource("5_terminal")]
-layout_mode = 3
+[node name="Terminal" parent="UI" instance=ExtResource("5_terminal")]
 
-[node name="SkillPanel" parent="UI" unique_id=2095100656 instance=ExtResource("6_skill")]
-layout_mode = 3
-offset_left = -3.0
-offset_top = -7.0
-offset_right = -3.0
-offset_bottom = -7.0
+[node name="SkillPanel" parent="UI" instance=ExtResource("6_skill")]
+
+[node name="LevelSelector" parent="UI" instance=ExtResource("11_sel")]

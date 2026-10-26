@@ -28,9 +28,10 @@ Semua kode berbahasa Indonesia (variabel & fungsi), seluruh teks in-game berbaha
 | `Q` | Pakai medkit |
 | `E` | Masuk / keluar bunker |
 | `W` / `S` | Naik / turun lantai (di zona tangga) |
-| `Tab` | Buka terminal (global, juga saat di dalam bunker) |
+| `Tab` | Buka pohon skill |
 | `K` | Buka pohon skill |
-| `Esc` / `Tab` | Tutup panel |
+| `E` | Interaksi (masuk/keluar bunker, scan detektor, bicara NPC) |
+| `W` / `S` | Naik / turun lantai (di zona tangga) |
 
 ## Alur Ekonomi
 
@@ -50,13 +51,26 @@ diperbaiki.
 
 | Lapis | Fungsi | Cara pulih |
 |---|---|---|
-| **Pagar** (`x = 470`) | Menahan zombie secara fisik. Garis depan. | REPAIR di terminal |
-| **Bunker** (`x = 104`) | Kalau pagar jebol, zombie menggerus pintu. | REPAIR di terminal |
+| **Pagar** (`x = 250`) | Menahan zombie secara fisik. Butuh skill `barbed_wire` agar aktif — sebelumnya terlihat sebagai reruntuhan. | Bicara ke NPC di bunker |
+| **Bunker** (`x = 104`) | Kalau pagar jebol, zombie menggerus pintu. | Bicara ke NPC di bunker |
 | **Lantai 2** | Slot auto-weapon pertama (fase 5). Butuh `Tower Access`. | — |
 
 Masuk bunker dengan `E`. Waktu **tetap berjalan** di dalam: zombie terus
 menggerus pagar dan pintu, dan pemain tidak bisa menembak. Jadi masuk bunker
 adalah pilihan untuk sembuh di kasur (3 HP/s), bukan jeda gratis.
+
+## Alur Level
+
+```
+SIANG  →  [E] di Detektor  →  LevelSelector  →  Pilih Level
+  ↓
+MALAM  →  Wave 1 … Wave N  →  Wave selesai semua
+  ↓
+SIANG  (kembali ke awal)
+```
+
+- Level 1 — *First Night*: 5 wave, zombie lebih lemah (pengali HP 0.8, kecepatan 0.85).
+- Level lanjut ditambahkan di fase berikutnya.
 
 ---
 
@@ -78,6 +92,7 @@ bunkIncremental/
 │   ├── senjata.gd / senjata/{pistol,parang}.tres
 │   ├── musuh.gd / musuh/zombie_biasa.tres
 │   ├── resep_peluru.gd / peluru/9mm.tres
+│   ├── level.gd / level/level_1.tres   # data level (wave, pengali)
 │   └── skill.gd, pohon_skill.gd / skill/pohon_skill.tres
 ├── scenes/
 │   ├── main.tscn/.gd          # orkestrasi wave, spawn, masuk/keluar bunker
